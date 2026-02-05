@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Energy Monitor</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#3B82F6",
+              success: "#10B981",
+              danger: "#EF4444",
+              darkBg: "#111827",
+              cardDark: "#1F2937",
+              sidebarLight: "#ffffff",
+              sidebarDark: "#1F2937",
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <style>
+      body {
+        transition: background-color 0.3s, color 0.3s;
+      }
+      .ping {
+        animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+      }
+      @keyframes ping {
+        75%,
+        100% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
+      }
+      .custom-scroll::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 20px;
+      }
+      .dark .custom-scroll::-webkit-scrollbar-thumb {
+        background-color: #4b5563;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-100 text-gray-800 dark:bg-darkBg dark:text-gray-100 min-h-screen flex justify-center"
+  >
+    <div
+      class="w-full max-w-md bg-white dark:bg-cardDark shadow-2xl min-h-screen flex flex-col relative overflow-hidden"
+    >
+      
+      <div id="menu-overlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity opacity-0 backdrop-blur-sm"></div>
+
+      <aside id="sidebar" class="fixed top-0 left-0 h-full w-[70%] max-w-[300px] bg-white dark:bg-gray-900 z-50 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+          <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+              <span class="font-bold text-lg tracking-wide">Menu</span>
+              <button id="close-menu-btn" class="text-gray-500 hover:text-red-500 transition">
+                  <i class="fas fa-times text-xl"></i>
+              </button>
+          </div>
+          
+          <nav class="flex-grow p-4 overflow-y-auto">
+              <ul class="space-y-2">
+                  <li>
+                      <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200">
+                          <i class="fas fa-chart-line text-blue-500 w-6"></i>
+                          <span id="m-graphs">Графики</span>
+                      </a>
+                  </li>
+                  <li>
+                      <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200">
+                          <i class="fas fa-cog text-gray-400 w-6"></i>
+                          <span id="m-settings">Настройки</span>
+                      </a>
+                  </li>
+                  <li>
+                      <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200">
+                          <i class="fas fa-info-circle text-gray-400 w-6"></i>
+                          <span id="m-about">О системе</span>
+                      </a>
+                  </li>
+              </ul>
+          </nav>
+
+          <div class="p-4 border-t border-gray-200 dark:border-gray-700 text-center">
+              <p class="text-xs text-gray-400">Version 1.0.2</p>
+          </div>
+      </aside>
+
+
+      <header
+        class="p-6 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-cardDark z-30 relative"
+      >
+        <div class="flex items-center gap-4">
+          <button id="open-menu-btn" class="text-gray-600 dark:text-gray-300 hover:text-primary transition focus:outline-none">
+              <i class="fas fa-bars text-xl"></i>
+          </button>
+
+          <div>
+            <h1 class="text-xl font-bold tracking-wide">Home Energy</h1>
+            <p id="t-subtitle" class="text-xs text-gray-500 dark:text-gray-400">
+              Система мониторинга
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <select id="lang-select" class="text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 outline-none border-none cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                <option value="en">ENG</option>
+                <option value="uk">УКР</option>
+                <option value="ru">РУС</option>
+            </select>
+
+            <button
+            id="theme-toggle"
+            class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 transition focus:outline-none w-8 h-8 flex items-center justify-center"
+            >
+            <i
+                class="fas fa-moon text-gray-600 dark:text-yellow-300"
+                id="theme-icon"
+            ></i>
+            </button>
+        </div>
+      </header>
+
+      <main class="flex-grow p-6 flex flex-col gap-6 overflow-hidden">
+        <div
+          id="status-card"
+          class="bg-gray-100 border border-gray-200 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col"
+        >
+          <div class="relative inline-flex mb-4 self-center">
+            <span
+              id="status-ping"
+              class="hidden absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"
+            ></span>
+            <div
+              id="status-icon-bg"
+              class="relative inline-flex rounded-full h-16 w-16 bg-gray-500 items-center justify-center text-white text-2xl shadow-lg"
+            >
+              <i class="fas fa-question"></i>
+            </div>
+          </div>
+          <h2
+            id="status-text"
+            class="text-2xl font-bold text-gray-700 dark:text-gray-400"
+          >
+            ...
+          </h2>
+          <p
+            id="status-subtext"
+            class="text-sm text-gray-600 dark:text-gray-300 mt-1 mb-4"
+          >
+            ...
+          </p>
+
+          <div class="grid grid-cols-2 gap-2 text-xs border-t border-black/10 dark:border-white/10 pt-3 mt-auto">
+              <div class="flex flex-col">
+                  <span id="t-last-on" class="opacity-60 uppercase font-bold tracking-wider text-[10px]">Посл. вкл</span>
+                  <span id="time-last-on" class="font-mono text-base font-semibold">--:--</span>
+              </div>
+              <div class="flex flex-col border-l border-black/10 dark:border-white/10 pl-2">
+                <span id="t-last-off" class="opacity-60 uppercase font-bold tracking-wider text-[10px]">Посл. выкл</span>
+                <span id="time-last-off" class="font-mono text-base font-semibold">--:--</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="bg-gray-50 dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-700"
+        >
+          <div class="flex justify-between items-end mb-2">
+            <span class="text-sm font-medium text-gray-500 dark:text-gray-400"
+              ><i class="fas fa-car-battery mr-2"></i><span id="t-battery">Заряд АКБ</span></span
+            >
+            <span id="battery-percent" class="text-2xl font-bold text-primary"
+              >--%</span
+            >
+          </div>
+          <div
+            class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 overflow-hidden"
+          >
+            <div
+              id="battery-bar"
+              class="bg-blue-500 h-4 rounded-full transition-all duration-1000 ease-out"
+              style="width: 0%"
+            ></div>
+          </div>
+          <div class="mt-3 flex justify-between text-xs text-gray-400">
+            <span><span id="t-event">Событие</span>: <span id="last-event-type">--</span></span>
+            <span id="last-update">--:--</span>
+          </div>
+        </div>
+
+        <div class="mt-2 flex-grow flex flex-col overflow-hidden">
+          <h3
+            id="t-history"
+            class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex-shrink-0"
+          >
+            История
+          </h3>
+          <div class="overflow-y-auto custom-scroll pr-1 flex-grow" style="max-height: 300px;">
+            <ul id="logs-list" class="space-y-3 pb-2">
+              </ul>
+          </div>
+        </div>
+      </main>
+
+      <footer
+        class="p-4 text-center text-xs text-gray-400 border-t border-gray-200 dark:border-gray-700 flex-shrink-0"
+      >
+        IoT Energy Monitor &copy; 2026
+      </footer>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      import {
+        getFirestore,
+        collection,
+        query,
+        orderBy,
+        limit,
+        onSnapshot
+      } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+      // === 1. НАСТРОЙКИ FIREBASE ===
+      const firebaseConfig = {
+        apiKey: "AIzaSyAsr-JbArcAu-7_csBxM6VDsC7hyPz7qB0",
+        authDomain: "meter-form.firebaseapp.com",
+        projectId: "meter-form",
+        storageBucket: "meter-form.firebasestorage.app",
+        messagingSenderId: "338954736636",
+        appId: "1:338954736636:web:06817290680190530d17d0",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+
+      // === 2. СЛОВАРЬ ПЕРЕВОДОВ ===
+      const translations = {
+        ru: {
+            subtitle: "Система мониторинга",
+            loading: "Загрузка...",
+            wait: "Ожидание данных",
+            powerOn: "Питание ЕСТЬ",
+            powerOff: "Питание ОТСУТСТВУЕТ",
+            subOn: "Работа от сети 220В",
+            subOff: "Работа от аккумулятора",
+            battery: "Заряд АКБ",
+            event: "Событие",
+            history: "История событий",
+            updated: "Обновлено",
+            error: "Ошибка доступа",
+            noData: "Нет данных",
+            lastOn: "Посл. ВКЛ",
+            lastOff: "Посл. ВЫКЛ",
+            // Меню
+            mGraphs: "Графики",
+            mSettings: "Настройки",
+            mAbout: "О системе"
+        },
+        uk: {
+            subtitle: "Система моніторингу",
+            loading: "Завантаження...",
+            wait: "Очікування даних",
+            powerOn: "Світло Є",
+            powerOff: "Світла НЕМАЄ",
+            subOn: "Робота від мережі 220В",
+            subOff: "Робота від акумулятора",
+            battery: "Заряд АКБ",
+            event: "Подія",
+            history: "Історія подій",
+            updated: "Оновлено",
+            error: "Помилка доступу",
+            noData: "Немає даних",
+            lastOn: "Ост. УВІМК",
+            lastOff: "Ост. ВИМК",
+            // Меню
+            mGraphs: "Графіки",
+            mSettings: "Налаштування",
+            mAbout: "Про систему"
+        },
+        en: {
+            subtitle: "Monitoring System",
+            loading: "Loading...",
+            wait: "Waiting for data",
+            powerOn: "Power ON",
+            powerOff: "Power OFF",
+            subOn: "Main grid 220V active",
+            subOff: "Running on battery",
+            battery: "Battery Level",
+            event: "Event",
+            history: "Event History",
+            updated: "Updated",
+            error: "Access Error",
+            noData: "No Data",
+            lastOn: "Last ON",
+            lastOff: "Last OFF",
+            // Menu
+            mGraphs: "Charts",
+            mSettings: "Settings",
+            mAbout: "About"
+        }
+      };
+
+      let currentDocs = []; 
+      let currentLang = localStorage.getItem('lang') || 'ru'; 
+
+      // === 3. ЭЛЕМЕНТЫ UI ===
+      const langSelect = document.getElementById("lang-select");
+      
+      const tSubtitle = document.getElementById("t-subtitle");
+      const tBattery = document.getElementById("t-battery");
+      const tEvent = document.getElementById("t-event");
+      const tHistory = document.getElementById("t-history");
+      const tLastOn = document.getElementById("t-last-on");
+      const tLastOff = document.getElementById("t-last-off");
+      
+      // Меню элементы перевода
+      const mGraphs = document.getElementById("m-graphs");
+      const mSettings = document.getElementById("m-settings");
+      const mAbout = document.getElementById("m-about");
+
+      const statusCard = document.getElementById("status-card");
+      const statusText = document.getElementById("status-text");
+      const statusSubtext = document.getElementById("status-subtext");
+      const statusIconBg = document.getElementById("status-icon-bg");
+      const statusPing = document.getElementById("status-ping");
+      
+      const timeLastOnLabel = document.getElementById("time-last-on");
+      const timeLastOffLabel = document.getElementById("time-last-off");
+
+      const batteryBar = document.getElementById("battery-bar");
+      const batteryPercent = document.getElementById("battery-percent");
+      
+      const lastUpdateLabel = document.getElementById("last-update");
+      const lastEventLabel = document.getElementById("last-event-type");
+      const logsList = document.getElementById("logs-list");
+
+      // LOGIC FOR SIDEBAR MENU
+      const openMenuBtn = document.getElementById('open-menu-btn');
+      const closeMenuBtn = document.getElementById('close-menu-btn');
+      const menuOverlay = document.getElementById('menu-overlay');
+      const sidebar = document.getElementById('sidebar');
+
+      function toggleMenu(show) {
+          if (show) {
+              menuOverlay.classList.remove('hidden');
+              // Небольшая задержка для opacity, чтобы сработал transition
+              setTimeout(() => {
+                  menuOverlay.classList.remove('opacity-0');
+                  sidebar.classList.remove('-translate-x-full');
+              }, 10);
+          } else {
+              sidebar.classList.add('-translate-x-full');
+              menuOverlay.classList.add('opacity-0');
+              setTimeout(() => {
+                  menuOverlay.classList.add('hidden');
+              }, 300); // Ждем окончания анимации
+          }
+      }
+
+      openMenuBtn.addEventListener('click', () => toggleMenu(true));
+      closeMenuBtn.addEventListener('click', () => toggleMenu(false));
+      menuOverlay.addEventListener('click', () => toggleMenu(false));
+
+
+      // === 4. ЛОГИКА СМЕНЫ ЯЗЫКА ===
+      langSelect.value = currentLang;
+      applyLanguage(currentLang);
+
+      langSelect.addEventListener("change", (e) => {
+          currentLang = e.target.value;
+          localStorage.setItem('lang', currentLang);
+          applyLanguage(currentLang);
+          if(currentDocs.length > 0) {
+              renderAll(currentDocs);
+          }
+      });
+
+      function applyLanguage(lang) {
+          const t = translations[lang];
+          tSubtitle.innerText = t.subtitle;
+          tBattery.innerText = t.battery;
+          tEvent.innerText = t.event;
+          tHistory.innerText = t.history;
+          tLastOn.innerText = t.lastOn;
+          tLastOff.innerText = t.lastOff;
+          
+          // Меню
+          mGraphs.innerText = t.mGraphs;
+          mSettings.innerText = t.mSettings;
+          mAbout.innerText = t.mAbout;
+          
+          if(currentDocs.length === 0) {
+            statusText.innerText = t.loading;
+            statusSubtext.innerText = t.wait;
+          }
+      }
+
+      // === 5. ПОЛУЧЕНИЕ ДАННЫХ ===
+      const q = query(
+        collection(db, "esp32_data"),
+        orderBy("timestamp", "desc"),
+        limit(50) 
+      );
+
+      onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+            currentDocs = snapshot.docs.map(doc => doc.data());
+            renderAll(currentDocs);
+        } else {
+            statusText.innerText = translations[currentLang].noData;
+        }
+      }, (err) => {
+        console.error(err);
+        statusText.innerText = translations[currentLang].error;
+      });
+
+      // === 6. ФУНКЦИЯ ОТРИСОВКИ ===
+      function renderAll(docs) {
+          const t = translations[currentLang];
+          const latest = docs[0]; 
+
+          // --- ОБНОВЛЕНИЕ ГЛАВНОГО БЛОКА ---
+          const isPowerOn = latest.value === 1;
+          const batLevel = latest.battery || 0;
+          const eventType = latest.device || "Event";
+          
+          let timeString = "--:--";
+          if (latest.timestamp && latest.timestamp.toDate) {
+            timeString = latest.timestamp.toDate().toLocaleTimeString();
+          }
+
+          lastUpdateLabel.innerText = `${t.updated}: ${timeString}`;
+          lastEventLabel.innerText = eventType;
+
+          const lastOnDoc = docs.find(d => d.value === 1);
+          const lastOffDoc = docs.find(d => d.value === 0);
+
+          if (lastOnDoc && lastOnDoc.timestamp) {
+              timeLastOnLabel.innerText = lastOnDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          } else {
+              timeLastOnLabel.innerText = "--:--";
+          }
+
+          if (lastOffDoc && lastOffDoc.timestamp) {
+              timeLastOffLabel.innerText = lastOffDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+          } else {
+              timeLastOffLabel.innerText = "--:--";
+          }
+
+          if (isPowerOn) {
+            statusCard.className = "bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col";
+            statusText.className = "text-2xl font-bold text-green-700 dark:text-green-400";
+            statusText.innerText = t.powerOn;
+            statusSubtext.innerText = t.subOn;
+            
+            statusIconBg.className = "relative inline-flex rounded-full h-16 w-16 bg-green-500 items-center justify-center text-white text-2xl shadow-lg shadow-green-500/50";
+            statusIconBg.innerHTML = '<i class="fas fa-bolt"></i>';
+            statusPing.classList.remove("hidden");
+          } else {
+            statusCard.className = "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col";
+            statusText.className = "text-2xl font-bold text-red-700 dark:text-red-400";
+            statusText.innerText = t.powerOff;
+            statusSubtext.innerText = t.subOff;
+            
+            statusIconBg.className = "relative inline-flex rounded-full h-16 w-16 bg-red-500 items-center justify-center text-white text-2xl shadow-lg shadow-red-500/50";
+            statusIconBg.innerHTML = '<i class="fas fa-plug-circle-xmark"></i>';
+            statusPing.classList.add("hidden");
+          }
+
+          batteryPercent.innerText = batLevel + "%";
+          batteryBar.style.width = batLevel + "%";
+          if (batLevel > 50) batteryBar.className = "bg-blue-500 h-4 rounded-full transition-all duration-1000 ease-out";
+          else if (batLevel > 20) batteryBar.className = "bg-yellow-500 h-4 rounded-full transition-all duration-1000 ease-out";
+          else batteryBar.className = "bg-red-500 h-4 rounded-full transition-all duration-1000 ease-out";
+
+          let listHTML = "";
+          docs.slice(0, 10).forEach((data) => {
+              const isOn = data.value === 1;
+              const evt = data.device || "Event";
+              let timeStr = "--:--:--";
+              if (data.timestamp && data.timestamp.toDate) {
+                  timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              }
+              const borderClass = isOn ? 'border-green-500' : 'border-red-500';
+              
+              listHTML += `
+              <li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <div class="flex-grow">
+                      <div class="font-medium text-gray-700 dark:text-gray-200">${evt}</div>
+                      <div class="text-xs text-gray-400">Bat: ${data.battery}% | Val: ${data.value}</div>
+                  </div>
+                  <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded">${timeStr}</span>
+              </li>
+              `;
+          });
+          logsList.innerHTML = listHTML;
+      }
+
+      // === 7. ТЕМА ===
+      const themeToggleBtn = document.getElementById("theme-toggle");
+      const themeIcon = document.getElementById("theme-icon");
+      if (localStorage.theme === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.classList.add("dark");
+        themeIcon.classList.remove("fa-moon");
+        themeIcon.classList.add("fa-sun");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      themeToggleBtn.addEventListener("click", () => {
+        if (document.documentElement.classList.contains("dark")) {
+          document.documentElement.classList.remove("dark");
+          localStorage.theme = "light";
+          themeIcon.classList.remove("fa-sun");
+          themeIcon.classList.add("fa-moon");
+        } else {
+          document.documentElement.classList.add("dark");
+          localStorage.theme = "dark";
+          themeIcon.classList.remove("fa-moon");
+          themeIcon.classList.add("fa-sun");
+        }
+      });
+    </script>
+  </body>
+</html>
