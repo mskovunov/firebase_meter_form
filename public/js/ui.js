@@ -189,13 +189,38 @@ export function renderHome(docs, currentLang) {
     document.getElementById("time-last-off").innerText = (lostDoc && lostDoc.timestamp) ? lostDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
 
     // History List
-    let listHTML = "";
+let listHTML = "";
     docs.slice(0, 10).forEach((data) => {
         const evt = data.device || "Event";
-        let timeStr = "--:--:--"; if (data.timestamp && data.timestamp.toDate) timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        // Форматирование времени
+        let timeStr = "--:--:--"; 
+        if (data.timestamp && data.timestamp.toDate) {
+            timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        
+        // Цвет бордюра в зависимости от события
         let borderClass = 'border-gray-300';
-        if (evt === "PowerRestored") borderClass = 'border-green-500'; else if (evt === "PowerLost") borderClass = 'border-red-500'; else if (evt === "RoutineCheck") borderClass = 'border-blue-300';
-        listHTML += `<li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700"><div class="flex-grow"><div class="font-medium text-gray-700 dark:text-gray-200">${evt}</div><div class="text-xs text-gray-400">Bat: ${data.battery}% | Val: ${data.value}</div></div><span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded">${timeStr}</span></li>`;
+        if (evt === "PowerRestored") borderClass = 'border-green-500'; 
+        else if (evt === "PowerLost") borderClass = 'border-red-500'; 
+        else if (evt === "RoutineCheck") borderClass = 'border-blue-300';
+        
+        // === НОВАЯ ЛОГИКА ДЛЯ VOLTAGE ===
+        // Если параметр voltage есть в базе, формируем строку " | 220V", иначе пустую строку
+        const volStr = data.voltage !== undefined ? ` | <span class="text-gray-600 dark:text-gray-300 font-bold">${data.voltage}V</span>` : '';
+
+        listHTML += `
+        <li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700">
+            <div class="flex-grow">
+                <div class="font-medium text-gray-700 dark:text-gray-200">${evt}</div>
+                <div class="text-xs text-gray-400">
+                    Bat: ${data.battery}%${volStr} | Val: ${data.value}
+                </div>
+            </div>
+            <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded">
+                ${timeStr}
+            </span>
+        </li>`;
     });
     document.getElementById("logs-list").innerHTML = listHTML;
 }
