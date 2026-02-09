@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="uk">
   <head>
     <meta charset="UTF-8" />
@@ -18,6 +18,8 @@
               primary: "#3B82F6",
               success: "#10B981",
               danger: "#EF4444",
+              warning: "#F59E0B",
+              purple: "#8B5CF6",
               darkBg: "#111827",
               cardDark: "#1F2937",
             },
@@ -25,672 +27,412 @@
         },
       };
     </script>
-    
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+    <link rel="stylesheet" href="css/style.css" />
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-
-    <style>
-      body { transition: background-color 0.3s, color 0.3s; }
-      .ping { animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
-      @keyframes ping {
-        75%, 100% { transform: scale(1.5); opacity: 0; }
-      }
-      .custom-scroll::-webkit-scrollbar { width: 4px; }
-      .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-      .custom-scroll::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-      .dark .custom-scroll::-webkit-scrollbar-thumb { background-color: #4b5563; }
-      
-      /* Анимация аккордеона */
-      .accordion-content {
-          transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
-          max-height: 500px; /* Достаточно большое значение для открытого состояния */
-          opacity: 1;
-          overflow: hidden;
-      }
-      .accordion-content.collapsed {
-          max-height: 0;
-          opacity: 0;
-      }
-      .rotate-icon {
-          transition: transform 0.3s;
-      }
-      .rotate-icon.collapsed {
-          transform: rotate(-90deg);
-      }
-    </style>
   </head>
-  <body class="bg-gray-100 text-gray-800 dark:bg-darkBg dark:text-gray-100 min-h-screen flex justify-center">
-    
-    <div class="w-full max-w-md bg-white dark:bg-cardDark shadow-2xl min-h-screen flex flex-col relative overflow-hidden">
-      
-      <div id="menu-overlay" class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity opacity-0 backdrop-blur-sm"></div>
+  <body
+    class="bg-gray-100 text-gray-800 dark:bg-darkBg dark:text-gray-100 min-h-screen flex justify-center"
+  >
+    <div
+      class="w-full max-w-md bg-white dark:bg-cardDark shadow-2xl min-h-screen flex flex-col relative overflow-hidden"
+    >
+      <div
+        id="menu-overlay"
+        class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity opacity-0 backdrop-blur-sm"
+      ></div>
 
-      <aside id="sidebar" class="fixed top-0 left-0 h-full w-[70%] max-w-[300px] bg-white dark:bg-gray-900 z-50 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
-          <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800">
-              <span class="font-bold text-lg tracking-wide">Меню</span>
-              <button id="close-menu-btn" class="text-gray-500 hover:text-red-500 transition"><i class="fas fa-times text-xl"></i></button>
-          </div>
-          <nav class="flex-grow p-4 overflow-y-auto">
-              <ul class="space-y-2">
-                  <li>
-                    <a href="#" id="nav-home" class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                        <i class="fas fa-home w-6"></i>
-                        <span id="m-home">Головна</span>
-                    </a>
-                  </li>
-                  <li>
-                      <a href="#" id="nav-graphs" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200">
-                          <i class="fas fa-chart-line text-blue-500 w-6"></i>
-                          <span id="m-graphs">Графіки</span>
-                      </a>
-                  </li>
-                  <li>
-                      <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200">
-                          <i class="fas fa-cog text-gray-400 w-6"></i>
-                          <span id="m-settings">Налаштування</span>
-                      </a>
-                  </li>
-                  <li>
-                      <a href="#" class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200">
-                          <i class="fas fa-info-circle text-gray-400 w-6"></i>
-                          <span id="m-about">Про систему</span>
-                      </a>
-                  </li>
-              </ul>
-          </nav>
-          <div class="p-4 border-t border-gray-200 dark:border-gray-700 text-center">
-              <p class="text-xs text-gray-400">Ver 1.4.0 (Accordion)</p>
-          </div>
+      <aside
+        id="sidebar"
+        class="fixed top-0 left-0 h-full w-[70%] max-w-[300px] bg-white dark:bg-gray-900 z-50 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col"
+      >
+        <div
+          class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800"
+        >
+          <span class="font-bold text-lg tracking-wide">Меню</span>
+          <button
+            id="close-menu-btn"
+            class="text-gray-500 hover:text-red-500 transition"
+          >
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <nav class="flex-grow p-4 overflow-y-auto">
+          <ul class="space-y-2">
+            <li>
+              <a
+                href="#"
+                id="nav-home"
+                class="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                ><i class="fas fa-home w-6"></i
+                ><span id="m-home">Головна</span></a
+              >
+            </li>
+            <li>
+              <a
+                href="#"
+                id="nav-monitoring"
+                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200"
+                ><i class="fas fa-bolt text-yellow-500 w-6"></i
+                ><span id="m-monitoring">Енергомоніторинг</span></a
+              >
+            </li>
+            <li>
+              <a
+                href="#"
+                id="nav-graphs"
+                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200"
+                ><i class="fas fa-chart-line text-blue-500 w-6"></i
+                ><span id="m-graphs">Графіки</span></a
+              >
+            </li>
+            <li>
+              <a
+                href="#"
+                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200"
+                ><i class="fas fa-cog text-gray-400 w-6"></i
+                ><span id="m-settings">Налаштування</span></a
+              >
+            </li>
+            <li>
+              <a
+                href="#"
+                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200"
+                ><i class="fas fa-info-circle text-gray-400 w-6"></i
+                ><span id="m-about">Про систему</span></a
+              >
+            </li>
+          </ul>
+        </nav>
+        <div
+          class="p-4 border-t border-gray-200 dark:border-gray-700 text-center"
+        >
+          <p class="text-xs text-gray-400">Ver 2.0 (Modular)</p>
+        </div>
       </aside>
 
-
-      <header class="p-6 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-cardDark z-30 relative">
+      <header
+        class="p-6 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-cardDark z-30 relative"
+      >
         <div class="flex items-center gap-4">
-          <button id="open-menu-btn" class="text-gray-600 dark:text-gray-300 hover:text-primary transition focus:outline-none">
-              <i class="fas fa-bars text-xl"></i>
+          <button
+            id="open-menu-btn"
+            class="text-gray-600 dark:text-gray-300 hover:text-primary transition focus:outline-none"
+          >
+            <i class="fas fa-bars text-xl"></i>
           </button>
           <div id="header-title-block" class="cursor-pointer">
             <h1 class="text-xl font-bold tracking-wide">Home Energy</h1>
-            <p id="t-subtitle" class="text-xs text-gray-500 dark:text-gray-400">Система моніторингу</p>
+            <p id="t-subtitle" class="text-xs text-gray-500 dark:text-gray-400">
+              Система моніторингу
+            </p>
           </div>
         </div>
-        
         <div class="flex items-center gap-2">
-            <select id="lang-select" class="text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 outline-none border-none cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition">
-                <option value="en">ENG</option>
-                <option value="uk">УКР</option>
-                <option value="ru">РУС</option>
-            </select>
-            <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 transition focus:outline-none w-8 h-8 flex items-center justify-center">
-                <i class="fas fa-moon text-gray-600 dark:text-yellow-300" id="theme-icon"></i>
-            </button>
+          <select
+            id="lang-select"
+            class="text-xs font-bold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg px-2 py-2 outline-none border-none cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+          >
+            <option value="en">ENG</option>
+            <option value="uk">УКР</option>
+            <option value="ru">РУС</option>
+          </select>
+          <button
+            id="theme-toggle"
+            class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 transition focus:outline-none w-8 h-8 flex items-center justify-center"
+          >
+            <i
+              class="fas fa-moon text-gray-600 dark:text-yellow-300"
+              id="theme-icon"
+            ></i>
+          </button>
         </div>
       </header>
 
-
       <main class="flex-grow p-6 flex flex-col gap-6 overflow-hidden relative">
-        
-        <div id="view-home" class="flex flex-col gap-6 h-full transition-opacity duration-300">
-            <div id="status-card" class="bg-gray-100 border border-gray-200 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col">
-                <div class="relative inline-flex mb-4 self-center">
-                    <span id="status-ping" class="hidden absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"></span>
-                    <div id="status-icon-bg" class="relative inline-flex rounded-full h-16 w-16 bg-gray-500 items-center justify-center text-white text-2xl shadow-lg">
-                        <i class="fas fa-question"></i>
-                    </div>
-                </div>
-                <h2 id="status-text" class="text-2xl font-bold text-gray-700 dark:text-gray-400">...</h2>
-                <p id="status-subtext" class="text-sm text-gray-600 dark:text-gray-300 mt-1 mb-4">...</p>
-                <div class="grid grid-cols-2 gap-2 text-xs border-t border-black/10 dark:border-white/10 pt-3 mt-auto">
-                    <div class="flex flex-col">
-                        <span id="t-last-on" class="opacity-60 uppercase font-bold tracking-wider text-[10px]">Ост. УВІМК</span>
-                        <span id="time-last-on" class="font-mono text-base font-semibold">--:--</span>
-                    </div>
-                    <div class="flex flex-col border-l border-black/10 dark:border-white/10 pl-2">
-                        <span id="t-last-off" class="opacity-60 uppercase font-bold tracking-wider text-[10px]">Ост. ВИМК</span>
-                        <span id="time-last-off" class="font-mono text-base font-semibold">--:--</span>
-                    </div>
-                </div>
+        <div
+          id="view-home"
+          class="flex flex-col gap-6 h-full transition-opacity duration-300"
+        >
+          <div
+            id="status-card"
+            class="bg-gray-100 border border-gray-200 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col"
+          >
+            <div class="relative inline-flex mb-4 self-center">
+              <span
+                id="status-ping"
+                class="hidden absolute inline-flex h-full w-full rounded-full bg-gray-400 opacity-75"
+              ></span>
+              <div
+                id="status-icon-bg"
+                class="relative inline-flex rounded-full h-16 w-16 bg-gray-500 items-center justify-center text-white text-2xl shadow-lg"
+              >
+                <i class="fas fa-question"></i>
+              </div>
             </div>
+            <h2
+              id="status-text"
+              class="text-2xl font-bold text-gray-700 dark:text-gray-400"
+            >
+              ...
+            </h2>
+            <p
+              id="status-subtext"
+              class="text-sm text-gray-600 dark:text-gray-300 mt-1 mb-4"
+            >
+              ...
+            </p>
+            <div
+              class="grid grid-cols-2 gap-2 text-xs border-t border-black/10 dark:border-white/10 pt-3 mt-auto"
+            >
+              <div class="flex flex-col">
+                <span
+                  id="t-last-on"
+                  class="opacity-60 uppercase font-bold tracking-wider text-[10px]"
+                  >Ост. УВІМК</span
+                ><span
+                  id="time-last-on"
+                  class="font-mono text-base font-semibold"
+                  >--:--</span
+                >
+              </div>
+              <div
+                class="flex flex-col border-l border-black/10 dark:border-white/10 pl-2"
+              >
+                <span
+                  id="t-last-off"
+                  class="opacity-60 uppercase font-bold tracking-wider text-[10px]"
+                  >Ост. ВИМК</span
+                ><span
+                  id="time-last-off"
+                  class="font-mono text-base font-semibold"
+                  >--:--</span
+                >
+              </div>
+            </div>
+          </div>
 
-            <div class="bg-gray-50 dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                <div class="flex justify-between items-end mb-2">
-                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400"><i class="fas fa-car-battery mr-2"></i><span id="t-battery">Заряд АКБ</span></span>
-                    <span id="battery-percent" class="text-2xl font-bold text-primary">--%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 overflow-hidden">
-                    <div id="battery-bar" class="bg-blue-500 h-4 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
-                </div>
-                <div class="mt-3 flex justify-between text-xs text-gray-400">
-                    <span><span id="t-event">Подія</span>: <span id="last-event-type">--</span></span>
-                    <span id="last-update">--:--</span>
-                </div>
+          <div
+            class="bg-gray-50 dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-700"
+          >
+            <div class="flex justify-between items-end mb-2">
+              <span class="text-sm font-medium text-gray-500 dark:text-gray-400"
+                ><i class="fas fa-car-battery mr-2"></i
+                ><span id="t-battery">Заряд АКБ</span></span
+              ><span
+                id="battery-percent"
+                class="text-2xl font-bold text-primary"
+                >--%</span
+              >
             </div>
+            <div
+              class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 overflow-hidden"
+            >
+              <div
+                id="battery-bar"
+                class="bg-blue-500 h-4 rounded-full transition-all duration-1000 ease-out"
+                style="width: 0%"
+              ></div>
+            </div>
+            <div class="mt-3 flex justify-between text-xs text-gray-400">
+              <span
+                ><span id="t-event">Подія</span>:
+                <span id="last-event-type">--</span></span
+              ><span id="last-update">--:--</span>
+            </div>
+          </div>
 
-            <div class="mt-2 flex-grow flex flex-col overflow-hidden">
-                <h3 id="t-history" class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex-shrink-0">Історія</h3>
-                <div class="overflow-y-auto custom-scroll pr-1 flex-grow" style="max-height: 300px;">
-                    <ul id="logs-list" class="space-y-3 pb-2"></ul>
-                </div>
+          <div class="mt-2 flex-grow flex flex-col overflow-hidden">
+            <h3
+              id="t-history"
+              class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex-shrink-0"
+            >
+              Історія
+            </h3>
+            <div
+              class="overflow-y-auto custom-scroll pr-1 flex-grow"
+              style="max-height: 300px"
+            >
+              <ul id="logs-list" class="space-y-3 pb-2"></ul>
             </div>
+          </div>
         </div>
 
-
-        <div id="view-graphs" class="hidden flex-col gap-4 h-full transition-opacity duration-300 overflow-y-auto custom-scroll pb-10">
-            
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <button onclick="window.toggleGraph('graph1-content', 'graph1-icon')" class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none">
-                    <h2 id="t-graph-title" class="text-sm font-bold text-gray-700 dark:text-gray-200">Графік заряду</h2>
-                    <i id="graph1-icon" class="fas fa-chevron-down text-gray-400 rotate-icon"></i>
-                </button>
-                <div id="graph1-content" class="accordion-content">
-                    <div class="p-4 relative min-h-[250px]">
-                        <canvas id="energyChart"></canvas>
-                    </div>
-                </div>
+        <div
+          id="view-monitoring"
+          class="hidden flex-col gap-4 h-full transition-opacity duration-300 overflow-y-auto custom-scroll pb-10"
+        >
+          <div class="grid grid-cols-2 gap-4">
+            <div
+              onclick="window.setMonChartMode('voltage')"
+              class="monitor-card group cursor-pointer relative overflow-hidden rounded-2xl p-4 shadow-sm transition border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-orange-400 dark:hover:border-orange-500"
+            >
+              <div
+                class="absolute right-2 top-2 text-4xl transition transform group-hover:scale-110 text-orange-500 opacity-20 dark:opacity-15"
+              >
+                <i class="fas fa-bolt"></i>
+              </div>
+              <h3
+                class="text-xs font-bold text-orange-500 uppercase tracking-wider mb-1"
+              >
+                Напруга
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="mon-voltage">--</span
+                ><span class="text-sm ml-1 text-gray-400">V</span>
+              </div>
             </div>
 
-            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <button onclick="window.toggleGraph('graph2-content', 'graph2-icon')" class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none">
-                    <h2 id="t-stats-title" class="text-sm font-bold text-gray-700 dark:text-gray-200">Статистика за добу</h2>
-                    <i id="graph2-icon" class="fas fa-chevron-down text-gray-400 rotate-icon"></i>
-                </button>
-                <div id="graph2-content" class="accordion-content">
-                    <div class="p-4 relative min-h-[250px]">
-                        <canvas id="statsChart"></canvas>
-                    </div>
-                </div>
+            <div
+              onclick="window.setMonChartMode('power')"
+              class="monitor-card group cursor-pointer relative overflow-hidden rounded-2xl p-4 shadow-sm transition border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500"
+              id="card-mon-power"
+            >
+              <div
+                class="absolute right-2 top-2 text-4xl transition transform group-hover:scale-110 text-blue-500 opacity-20 dark:opacity-15"
+              >
+                <i class="fas fa-plug"></i>
+              </div>
+              <h3
+                class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1"
+              >
+                Потужність
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="mon-power">--</span
+                ><span class="text-sm ml-1 text-gray-400">W</span>
+              </div>
             </div>
-            
-            <div class="text-xs text-gray-400 text-center mt-2">
-                <p id="t-data-info">Дані за останні ~48 годин</p>
+
+            <div
+              onclick="window.setMonChartMode('energy')"
+              class="monitor-card group cursor-pointer relative overflow-hidden rounded-2xl p-4 shadow-sm transition border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-500"
+            >
+              <div
+                class="absolute right-2 top-2 text-4xl transition transform group-hover:scale-110 text-purple-500 opacity-20 dark:opacity-15"
+              >
+                <i class="fas fa-tachometer-alt"></i>
+              </div>
+              <h3
+                class="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1"
+              >
+                Лічильник
+              </h3>
+              <div class="text-xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="mon-energy">--</span
+                ><span class="text-xs ml-1 text-gray-400">kWh</span>
+              </div>
             </div>
+
+            <div
+              onclick="window.setMonChartMode('daily')"
+              class="monitor-card group cursor-pointer relative overflow-hidden rounded-2xl p-4 shadow-sm transition border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-green-400 dark:hover:border-green-500"
+            >
+              <div
+                class="absolute right-2 top-2 text-4xl transition transform group-hover:scale-110 text-green-500 opacity-20 dark:opacity-15"
+              >
+                <i class="fas fa-leaf"></i>
+              </div>
+              <h3
+                class="text-xs font-bold text-green-500 uppercase tracking-wider mb-1"
+              >
+                Сьогодні
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="mon-daily">--</span
+                ><span class="text-sm ml-1 text-gray-400">kWh</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4"
+          >
+            <h2
+              id="mon-chart-title"
+              class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2 pl-1"
+            >
+              Графік потужності
+            </h2>
+            <div class="relative h-64 w-full">
+              <canvas id="monitoringChart"></canvas>
+            </div>
+          </div>
+          <div class="text-xs text-center text-gray-400" id="mon-status-text">
+            Очікування даних...
+          </div>
         </div>
 
+        <div
+          id="view-graphs"
+          class="hidden flex-col gap-4 h-full transition-opacity duration-300 overflow-y-auto custom-scroll pb-10"
+        >
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
+              onclick="window.toggleGraph('graph1-content', 'graph1-icon')"
+              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
+            >
+              <h2
+                id="t-graph-title"
+                class="text-sm font-bold text-gray-700 dark:text-gray-200"
+              >
+                Графік заряду
+              </h2>
+              <i
+                id="graph1-icon"
+                class="fas fa-chevron-down text-gray-400 rotate-icon"
+              ></i>
+            </button>
+            <div id="graph1-content" class="accordion-content">
+              <div class="p-4 relative min-h-[250px]">
+                <canvas id="energyChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
+              onclick="window.toggleGraph('graph2-content', 'graph2-icon')"
+              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
+            >
+              <h2
+                id="t-stats-title"
+                class="text-sm font-bold text-gray-700 dark:text-gray-200"
+              >
+                Статистика за добу
+              </h2>
+              <i
+                id="graph2-icon"
+                class="fas fa-chevron-down text-gray-400 rotate-icon"
+              ></i>
+            </button>
+            <div id="graph2-content" class="accordion-content">
+              <div class="p-4 relative min-h-[250px]">
+                <canvas id="statsChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="text-xs text-gray-400 text-center mt-2">
+            <p id="t-data-info">Дані за останні ~48 годин</p>
+          </div>
+        </div>
       </main>
-
-      <footer class="p-4 text-center text-xs text-gray-400 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+      <footer
+        class="p-4 text-center text-xs text-gray-400 border-t border-gray-200 dark:border-gray-700 flex-shrink-0"
+      >
         IoT Energy Monitor &copy; 2026
       </footer>
     </div>
 
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-      import { getFirestore, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-      // === ACCORDION LOGIC (Global) ===
-      window.toggleGraph = (contentId, iconId) => {
-          const content = document.getElementById(contentId);
-          const icon = document.getElementById(iconId);
-          
-          if (content.classList.contains('collapsed')) {
-              content.classList.remove('collapsed');
-              icon.classList.remove('collapsed'); // Rotates back to 0 (down)
-          } else {
-              content.classList.add('collapsed');
-              icon.classList.add('collapsed'); // Rotates to -90 (right)
-          }
-      };
-
-      // Регистрируем плагин
-      try {
-        if (typeof ChartDataLabels !== 'undefined') {
-            Chart.register(ChartDataLabels);
-        }
-      } catch (e) { console.error(e); }
-
-      // === FIREBASE CONFIG ===
-      const firebaseConfig = {
-        apiKey: "AIzaSyAsr-JbArcAu-7_csBxM6VDsC7hyPz7qB0",
-        authDomain: "meter-form.firebaseapp.com",
-        projectId: "meter-form",
-        storageBucket: "meter-form.firebasestorage.app",
-        messagingSenderId: "338954736636",
-        appId: "1:338954736636:web:06817290680190530d17d0",
-      };
-
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-
-      // === TRANSLATIONS ===
-      const translations = {
-        ru: {
-            subtitle: "Система мониторинга",
-            loading: "Загрузка...",
-            wait: "Ожидание данных",
-            powerOn: "Питание ЕСТЬ",
-            powerOff: "Питание ОТСУТСТВУЕТ",
-            subOn: "Работа от сети 220В",
-            subOff: "Работа от аккумулятора",
-            battery: "Заряд АКБ",
-            event: "Событие",
-            history: "История событий",
-            updated: "Обновлено",
-            error: "Ошибка доступа",
-            noData: "Нет данных",
-            lastOn: "Посл. ВКЛ",
-            lastOff: "Посл. ВЫКЛ",
-            mHome: "Главная",
-            mGraphs: "Графики",
-            mSettings: "Настройки",
-            mAbout: "О системе",
-            gTitle: "График заряда/разряда АКБ",
-            gStatsTitle: "Наличие света (часы по дням)",
-            statOn: "Есть свет",
-            statOff: "Нет света",
-            hShort: "ч",
-            mShort: "мин",
-            dataInfo: "Данные за последние ~48 часов"
-        },
-        uk: {
-            subtitle: "Система моніторингу",
-            loading: "Завантаження...",
-            wait: "Очікування даних",
-            powerOn: "Світло Є",
-            powerOff: "Світла НЕМАЄ",
-            subOn: "Робота від мережі 220В",
-            subOff: "Робота від акумулятора",
-            battery: "Заряд АКБ",
-            event: "Подія",
-            history: "Історія подій",
-            updated: "Оновлено",
-            error: "Помилка доступу",
-            noData: "Немає даних",
-            lastOn: "Ост. УВІМК",
-            lastOff: "Ост. ВИМК",
-            mHome: "Головна",
-            mGraphs: "Графіки",
-            mSettings: "Налаштування",
-            mAbout: "Про систему",
-            gTitle: "Графік заряду/розряду АКБ",
-            gStatsTitle: "Наявність світла (години по днях)",
-            statOn: "Є світло",
-            statOff: "Немає світла",
-            hShort: "год",
-            mShort: "хв",
-            dataInfo: "Дані за останні ~48 годин"
-        },
-        en: {
-            subtitle: "Monitoring System",
-            loading: "Loading...",
-            wait: "Waiting for data",
-            powerOn: "Power ON",
-            powerOff: "Power OFF",
-            subOn: "Main grid 220V active",
-            subOff: "Running on battery",
-            battery: "Battery Level",
-            event: "Event",
-            history: "Event History",
-            updated: "Updated",
-            error: "Access Error",
-            noData: "No Data",
-            lastOn: "Last ON",
-            lastOff: "Last OFF",
-            mHome: "Home",
-            mGraphs: "Charts",
-            mSettings: "Settings",
-            mAbout: "About",
-            gTitle: "Battery Charge/Discharge Chart",
-            gStatsTitle: "Power Availability (Hours/Day)",
-            statOn: "Power ON",
-            statOff: "Power OFF",
-            hShort: "h",
-            mShort: "m",
-            dataInfo: "Data for the last ~48 hours"
-        }
-      };
-
-      let currentDocs = []; 
-      let currentLang = localStorage.getItem('lang') || 'uk'; 
-      let chartInstance = null; 
-      let statsChartInstance = null; 
-
-      // === UI ELEMENTS ===
-      const langSelect = document.getElementById("lang-select");
-      const viewHome = document.getElementById("view-home");
-      const viewGraphs = document.getElementById("view-graphs");
-      const navHome = document.getElementById("nav-home");
-      const navGraphs = document.getElementById("nav-graphs");
-      
-      const tSubtitle = document.getElementById("t-subtitle");
-      const tBattery = document.getElementById("t-battery");
-      const tEvent = document.getElementById("t-event");
-      const tHistory = document.getElementById("t-history");
-      const tLastOn = document.getElementById("t-last-on");
-      const tLastOff = document.getElementById("t-last-off");
-      const tGraphTitle = document.getElementById("t-graph-title");
-      const tStatsTitle = document.getElementById("t-stats-title");
-      const tDataInfo = document.getElementById("t-data-info");
-      
-      const mHome = document.getElementById("m-home");
-      const mGraphs = document.getElementById("m-graphs");
-      const mSettings = document.getElementById("m-settings");
-      const mAbout = document.getElementById("m-about");
-      
-      const statusCard = document.getElementById("status-card");
-      const statusText = document.getElementById("status-text");
-      const statusSubtext = document.getElementById("status-subtext");
-      const statusIconBg = document.getElementById("status-icon-bg");
-      const statusPing = document.getElementById("status-ping");
-      const timeLastOnLabel = document.getElementById("time-last-on");
-      const timeLastOffLabel = document.getElementById("time-last-off");
-      const batteryBar = document.getElementById("battery-bar");
-      const batteryPercent = document.getElementById("battery-percent");
-      const lastUpdateLabel = document.getElementById("last-update");
-      const lastEventLabel = document.getElementById("last-event-type");
-      const logsList = document.getElementById("logs-list");
-
-      // === NAVIGATION ===
-      function showView(viewName) {
-          viewHome.classList.add('hidden');
-          viewGraphs.classList.add('hidden');
-          navHome.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
-          navGraphs.classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
-
-          if (viewName === 'home') {
-              viewHome.classList.remove('hidden');
-              navHome.classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
-          } else if (viewName === 'graphs') {
-              viewGraphs.classList.remove('hidden');
-              navGraphs.classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
-              if(chartInstance) chartInstance.resize();
-              if(statsChartInstance) statsChartInstance.resize();
-          }
-          toggleMenu(false);
-      }
-      navHome.addEventListener('click', () => showView('home'));
-      navGraphs.addEventListener('click', () => showView('graphs'));
-      document.getElementById('header-title-block').addEventListener('click', () => showView('home'));
-
-      // === SIDEBAR ===
-      const openMenuBtn = document.getElementById('open-menu-btn');
-      const closeMenuBtn = document.getElementById('close-menu-btn');
-      const menuOverlay = document.getElementById('menu-overlay');
-      const sidebar = document.getElementById('sidebar');
-      function toggleMenu(show) {
-          if (show) {
-              menuOverlay.classList.remove('hidden');
-              setTimeout(() => { menuOverlay.classList.remove('opacity-0'); sidebar.classList.remove('-translate-x-full'); }, 10);
-          } else {
-              sidebar.classList.add('-translate-x-full'); menuOverlay.classList.add('opacity-0');
-              setTimeout(() => { menuOverlay.classList.add('hidden'); }, 300);
-          }
-      }
-      openMenuBtn.addEventListener('click', () => toggleMenu(true));
-      closeMenuBtn.addEventListener('click', () => toggleMenu(false));
-      menuOverlay.addEventListener('click', () => toggleMenu(false));
-
-      // === LANGUAGE ===
-      langSelect.value = currentLang;
-      applyLanguage(currentLang);
-      langSelect.addEventListener("change", (e) => {
-          currentLang = e.target.value;
-          localStorage.setItem('lang', currentLang);
-          applyLanguage(currentLang);
-          if(currentDocs.length > 0) {
-              renderAll(currentDocs);
-              updateMainChart(currentDocs);
-              updateStatsChart(currentDocs);
-          }
-      });
-      function applyLanguage(lang) {
-          const t = translations[lang];
-          tSubtitle.innerText = t.subtitle; tBattery.innerText = t.battery; tEvent.innerText = t.event;
-          tHistory.innerText = t.history; tLastOn.innerText = t.lastOn; tLastOff.innerText = t.lastOff;
-          tGraphTitle.innerText = t.gTitle; tStatsTitle.innerText = t.gStatsTitle; 
-          tDataInfo.innerText = t.dataInfo;
-          
-          mHome.innerText = t.mHome; mGraphs.innerText = t.mGraphs; mSettings.innerText = t.mSettings; mAbout.innerText = t.mAbout;
-          if(currentDocs.length === 0) { statusText.innerText = t.loading; statusSubtext.innerText = t.wait; }
-      }
-
-      // === FIRESTORE ===
-      const q = query(collection(db, "esp32_data"), orderBy("timestamp", "desc"), limit(288));
-      onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-            currentDocs = snapshot.docs.map(doc => doc.data());
-            renderAll(currentDocs);
-            updateMainChart(currentDocs);
-            updateStatsChart(currentDocs);
-        } else {
-            statusText.innerText = translations[currentLang].noData;
-        }
-      }, (err) => { console.error(err); statusText.innerText = translations[currentLang].error; });
-
-      // === RENDER HOME ===
-      function renderAll(docs) {
-          const t = translations[currentLang];
-          const latest = docs[0]; 
-          const isPowerOn = latest.value === 1;
-          const batLevel = latest.battery || 0;
-          const eventType = latest.device || "Event";
-          
-          let timeString = "--:--";
-          if (latest.timestamp && latest.timestamp.toDate) timeString = latest.timestamp.toDate().toLocaleTimeString();
-          lastUpdateLabel.innerText = `${t.updated}: ${timeString}`;
-          lastEventLabel.innerText = eventType;
-
-          const restoreDoc = docs.find(d => d.device === "PowerRestored");
-          if (restoreDoc && restoreDoc.timestamp) timeLastOnLabel.innerText = restoreDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-          else timeLastOnLabel.innerText = "--:--";
-
-          const lostDoc = docs.find(d => d.device === "PowerLost");
-          if (lostDoc && lostDoc.timestamp) timeLastOffLabel.innerText = lostDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-          else timeLastOffLabel.innerText = "--:--";
-
-          if (isPowerOn) {
-            statusCard.className = "bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col";
-            statusText.className = "text-2xl font-bold text-green-700 dark:text-green-400"; statusText.innerText = t.powerOn; statusSubtext.innerText = t.subOn;
-            statusIconBg.className = "relative inline-flex rounded-full h-16 w-16 bg-green-500 items-center justify-center text-white text-2xl shadow-lg shadow-green-500/50";
-            statusIconBg.innerHTML = '<i class="fas fa-bolt"></i>'; statusPing.classList.remove("hidden");
-          } else {
-            statusCard.className = "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col";
-            statusText.className = "text-2xl font-bold text-red-700 dark:text-red-400"; statusText.innerText = t.powerOff; statusSubtext.innerText = t.subOff;
-            statusIconBg.className = "relative inline-flex rounded-full h-16 w-16 bg-red-500 items-center justify-center text-white text-2xl shadow-lg shadow-red-500/50";
-            statusIconBg.innerHTML = '<i class="fas fa-plug-circle-xmark"></i>'; statusPing.classList.add("hidden");
-          }
-
-          batteryPercent.innerText = batLevel + "%"; batteryBar.style.width = batLevel + "%";
-          if (batLevel > 50) batteryBar.className = "bg-blue-500 h-4 rounded-full transition-all duration-1000 ease-out";
-          else if (batLevel > 20) batteryBar.className = "bg-yellow-500 h-4 rounded-full transition-all duration-1000 ease-out";
-          else batteryBar.className = "bg-red-500 h-4 rounded-full transition-all duration-1000 ease-out";
-
-          let listHTML = "";
-          docs.slice(0, 10).forEach((data) => {
-              const isOn = data.value === 1; const evt = data.device || "Event";
-              let timeStr = "--:--:--"; if (data.timestamp && data.timestamp.toDate) timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-              let borderClass = 'border-gray-300';
-              if (evt === "PowerRestored") borderClass = 'border-green-500'; else if (evt === "PowerLost") borderClass = 'border-red-500'; else if (evt === "RoutineCheck") borderClass = 'border-blue-300';
-              listHTML += `<li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700"><div class="flex-grow"><div class="font-medium text-gray-700 dark:text-gray-200">${evt}</div><div class="text-xs text-gray-400">Bat: ${data.battery}% | Val: ${data.value}</div></div><span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded">${timeStr}</span></li>`;
-          });
-          logsList.innerHTML = listHTML;
-      }
-
-      // === CHART 1: Battery ===
-      function updateMainChart(docs) {
-          const reversedDocs = [...docs].reverse();
-          const labels = reversedDocs.map(d => (d.timestamp && d.timestamp.toDate) ? d.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '');
-          const dataPoints = reversedDocs.map(d => d.battery || 0);
-          const isDark = document.documentElement.classList.contains('dark');
-          const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-          const textColor = isDark ? '#e5e7eb' : '#374151';
-          const ctx = document.getElementById('energyChart').getContext('2d');
-
-          if (chartInstance) {
-              chartInstance.data.labels = labels; chartInstance.data.datasets[0].data = dataPoints;
-              chartInstance.options.scales.x.grid.color = gridColor; chartInstance.options.scales.y.grid.color = gridColor;
-              chartInstance.options.scales.x.ticks.color = textColor; chartInstance.options.scales.y.ticks.color = textColor;
-              chartInstance.update();
-          } else {
-              chartInstance = new Chart(ctx, {
-                  type: 'line',
-                  data: { labels: labels, datasets: [{ label: 'Battery %', data: dataPoints, borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 }] },
-                  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, max: 100, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor, maxTicksLimit: 6 } } } }
-              });
-          }
-      }
-
-      // === CHART 2: Daily Stats ===
-      function updateStatsChart(docs) {
-          const stats = calculateDailyStats(docs);
-          
-          const labels = Object.keys(stats).sort((a, b) => {
-              const [d1, m1] = a.split('.'); const [d2, m2] = b.split('.');
-              if (m1 !== m2) return m1 - m2; return d1 - d2;
-          });
-
-          const dataOn = labels.map(day => stats[day].on.toFixed(2)); 
-          const dataOff = labels.map(day => -stats[day].off.toFixed(2));
-
-          const isDark = document.documentElement.classList.contains('dark');
-          const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-          const textColor = isDark ? '#e5e7eb' : '#374151';
-          const t = translations[currentLang];
-          const ctx = document.getElementById('statsChart').getContext('2d');
-
-          const formatTime = (value) => {
-              const val = Math.abs(value);
-              const h = Math.floor(val);
-              const m = Math.round((val - h) * 60);
-              if (h === 0) return `${m}${t.mShort}`; 
-              if (m === 0) return `${h}${t.hShort}`; 
-              return `${h}${t.hShort} ${m}${t.mShort}`; 
-          };
-
-          const datasets = [
-              { label: t.statOn, data: dataOn, backgroundColor: '#10B981', borderRadius: 2 },
-              { label: t.statOff, data: dataOff, backgroundColor: '#EF4444', borderRadius: 2 }
-          ];
-
-          if (statsChartInstance) {
-              statsChartInstance.data.labels = labels;
-              statsChartInstance.data.datasets = datasets;
-              statsChartInstance.options.scales.y.grid.color = (context) => (context.tick.value === 0 ? 'rgba(239, 68, 68, 0.5)' : gridColor);
-              statsChartInstance.options.scales.y.ticks.color = textColor; 
-              statsChartInstance.options.scales.x.ticks.color = textColor;
-              statsChartInstance.update();
-          } else {
-              statsChartInstance = new Chart(ctx, {
-                  type: 'bar',
-                  data: { labels: labels, datasets: datasets },
-                  options: {
-                      responsive: true, maintainAspectRatio: false,
-                      plugins: {
-                          legend: { position: 'bottom', labels: { color: textColor } },
-                          datalabels: {
-                              color: '#ffffff', font: { weight: 'bold', size: 10 },
-                              formatter: (value) => { 
-                                  if (Math.abs(value) < 0.05) return null; 
-                                  return formatTime(value);
-                              },
-                              anchor: 'center', align: 'center'
-                          },
-                          tooltip: {
-                              callbacks: { 
-                                  label: (context) => { 
-                                      let label = context.dataset.label || ''; 
-                                      if (label) label += ': '; 
-                                      label += formatTime(context.raw);
-                                      return label; 
-                                  } 
-                              }
-                          }
-                      },
-                      scales: {
-                          x: { stacked: true, grid: { display: false }, ticks: { color: textColor } },
-                          y: {
-                              stacked: true,
-                              grid: {
-                                  color: (context) => (context.tick.value === 0 ? 'rgba(239, 68, 68, 0.6)' : gridColor),
-                                  lineWidth: (context) => (context.tick.value === 0 ? 2 : 1)
-                              },
-                              ticks: { callback: (value) => Math.abs(value), color: textColor, stepSize: 1 } 
-                          }
-                      }
-                  }
-              });
-          }
-      }
-
-      function formatDateDDMM(date) {
-          const d = date.getDate().toString().padStart(2, '0');
-          const m = (date.getMonth() + 1).toString().padStart(2, '0');
-          return `${d}.${m}`;
-      }
-
-      function calculateDailyStats(docs) {
-          const sortedDocs = [...docs].sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
-          const stats = {};
-          if (sortedDocs.length === 0) return stats;
-
-          let currentState = sortedDocs[0].value;
-          let lastTime = sortedDocs[0].timestamp.toDate();
-          
-          const now = new Date();
-          if (lastTime > now) lastTime = now;
-
-          const addStats = (date, hours, state) => {
-              const dayKey = formatDateDDMM(date);
-              if (!stats[dayKey]) stats[dayKey] = { on: 0, off: 0 };
-              if (state === 1) stats[dayKey].on += hours; else stats[dayKey].off += hours;
-          };
-
-          for (let i = 1; i < sortedDocs.length; i++) {
-              let currentTime = sortedDocs[i].timestamp.toDate();
-              if (currentTime > now) currentTime = now;
-              if (currentTime < lastTime) continue;
-
-              let tempTime = new Date(lastTime);
-              const nextDayStart = new Date(tempTime); nextDayStart.setHours(24, 0, 0, 0);
-
-              while (currentTime >= nextDayStart) {
-                  const hoursToEndOfDay = (nextDayStart - tempTime) / (1000 * 60 * 60);
-                  addStats(tempTime, hoursToEndOfDay, currentState);
-                  tempTime = new Date(nextDayStart); nextDayStart.setDate(nextDayStart.getDate() + 1);
-              }
-              const hoursDiff = (currentTime - tempTime) / (1000 * 60 * 60);
-              addStats(tempTime, hoursDiff, currentState);
-
-              lastTime = currentTime;
-              if (sortedDocs[i].device === "PowerLost") currentState = 0; else if (sortedDocs[i].device === "PowerRestored") currentState = 1;
-          }
-
-          let tempTime = new Date(lastTime);
-          const nextDayStart = new Date(tempTime); nextDayStart.setHours(24, 0, 0, 0);
-          while (now >= nextDayStart) {
-              const hoursToEndOfDay = (nextDayStart - tempTime) / (1000 * 60 * 60);
-              addStats(tempTime, hoursToEndOfDay, currentState);
-              tempTime = new Date(nextDayStart); nextDayStart.setDate(nextDayStart.getDate() + 1);
-          }
-          if (now > tempTime) {
-             const hoursDiff = (now - tempTime) / (1000 * 60 * 60);
-             addStats(tempTime, hoursDiff, currentState);
-          }
-          return stats;
-      }
-
-      // === THEME ===
-      const themeToggleBtn = document.getElementById("theme-toggle");
-      const themeIcon = document.getElementById("theme-icon");
-      function checkTheme() {
-          if (localStorage.theme === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-            document.documentElement.classList.add("dark"); themeIcon.classList.remove("fa-moon"); themeIcon.classList.add("fa-sun");
-          } else { document.documentElement.classList.remove("dark"); }
-          if(chartInstance) updateMainChart(currentDocs); if(statsChartInstance) updateStatsChart(currentDocs);
-      }
-      checkTheme();
-      themeToggleBtn.addEventListener("click", () => {
-        if (document.documentElement.classList.contains("dark")) {
-          document.documentElement.classList.remove("dark"); localStorage.theme = "light"; themeIcon.classList.remove("fa-sun"); themeIcon.classList.add("fa-moon");
-        } else {
-          document.documentElement.classList.add("dark"); localStorage.theme = "dark"; themeIcon.classList.remove("fa-moon"); themeIcon.classList.add("fa-sun");
-        }
-        if(chartInstance) updateMainChart(currentDocs); if(statsChartInstance) updateStatsChart(currentDocs);
-      });
-    </script>
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>
