@@ -10,15 +10,16 @@ let currentLang = localStorage.getItem('lang') || 'uk';
 let todayStartEnergy = null;
 let monUnsubscribe = null;
 let monDataCache = [];
+let historyCache = [];
+let isHistoryLoaded = false;
+let activeMonMode = 'power'; // Запоминаем текущий режим (по умолчанию Power)
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Check Theme
     if (localStorage.theme === "dark" || (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
         document.documentElement.classList.add("dark");
     }
 
-    // 2. Init UI Handlers
     UI.initUI({
         onViewChange: handleViewChange,
         onLangChange: (lang) => {
@@ -32,18 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. Apply Initial Lang
     UI.applyLanguage(currentLang);
-
-    // 4. Start Main Listener (Home & Graphs)
     startMainListener();
     
-    // 5. Expose specific functions to Window (for HTML onclicks)
     window.setMonChartMode = (mode) => {
-        Charts.setMonChartMode(mode, monDataCache, todayStartEnergy);
+        handleChartModeChange(mode);
+    };
+    
+    window.changeEnergyRange = (range) => {
+        Charts.changeEnergyRange(range);
     };
 });
-
 
 // === LOGIC ===
 
@@ -52,8 +52,42 @@ function handleViewChange(viewName) {
     
     if (viewName === 'monitoring') {
         startMonitoringListener();
+        // Убрали принудительный вызов handleChartModeChange отсюда,
+        // чтобы не рисовать пустой график до загрузки данных.
+        // Отрисовка произойдет сама внутри startMonitoringListener -> onSnapshot
     }
-    // Resize charts if needed logic is inside charts.js update functions usually
+}
+
+async function handleChartModeChange(mode) {
+    activeMonMode = mode; // Обновляем текущий режим
+
+    if (mode === 'energy') {
+        if (!isHistoryLoaded) {
+            document.getElementById('mon-status-text').innerText = "Завантаження історії...";
+            await loadHistoryData();
+        }
+        Charts.setMonChartMode(mode, historyCache, todayStartEnergy);
+        document.getElementById('mon-status-text').innerText = `Історія: ${historyCache.length} записів`;
+    } else {
+        // Для живых графиков используем кэш, если он есть
+        Charts.setMonChartMode(mode, monDataCache, todayStartEnergy);
+        document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString()}`;
+    }
+}
+
+async function loadHistoryData() {
+    try {
+        const qHistory = query(collection(db, "meter_readings"), orderBy("created_at", "desc"), limit(3000));
+        const snapshot = await getDocs(qHistory);
+        
+        if (!snapshot.empty) {
+            historyCache = snapshot.docs.map(doc => doc.data());
+            isHistoryLoaded = true;
+            console.log("History loaded:", historyCache.length);
+        }
+    } catch (e) {
+        console.error("Error loading history:", e);
+    }
 }
 
 function startMainListener() {
@@ -62,8 +96,6 @@ function startMainListener() {
         if (!snapshot.empty) {
             currentDocs = snapshot.docs.map(doc => doc.data());
             refreshData();
-        } else {
-            // Handle no data UI
         }
     }, (err) => console.error("Main Listener Error:", err));
 }
@@ -73,9 +105,6 @@ function refreshData() {
         UI.renderHome(currentDocs, currentLang);
         Charts.updateMainChart(currentDocs);
         Charts.updateStatsChart(currentDocs, UI.translations, currentLang);
-    }
-    if(monDataCache.length > 0) {
-        Charts.updateMonitoringChart(todayStartEnergy);
     }
 }
 
@@ -97,6 +126,7 @@ function startMonitoringListener() {
     if(monUnsubscribe) return; 
 
     fetchTodayStart();
+    
     const qMon = query(collection(db, "meter_readings"), orderBy("created_at", "desc"), limit(200));
     
     monUnsubscribe = onSnapshot(qMon, (snapshot) => {
@@ -105,15 +135,20 @@ function startMonitoringListener() {
             return;
         }
         
-        document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString()}`;
         const docs = snapshot.docs.map(doc => doc.data());
         
-        // Cache and Update
+        // Оновлюємо кеш живих даних
         monDataCache = docs.reverse(); 
-        const latest = monDataCache[monDataCache.length - 1]; // Newest is last because we reversed for chart
+        const latest = monDataCache[monDataCache.length - 1];
         
         UI.updateMonitoringCards(latest, todayStartEnergy);
-        Charts.setMonChartMode('power', monDataCache, todayStartEnergy); // Default view
         
+        // ВАЖЛИВО: Як тільки прийшли дані - оновлюємо графік
+        // Але тільки якщо ми не в режимі історії (бо там дані статичні)
+        if (activeMonMode !== 'energy') {
+            Charts.setMonChartMode(activeMonMode, monDataCache, todayStartEnergy);
+            document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString()}`;
+        }
+
     }, (err) => console.error("Mon Error", err));
 }

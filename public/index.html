@@ -352,14 +352,44 @@
           </div>
 
           <div
-            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4"
+            class="mt-4 bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-4"
           >
-            <h2
-              id="mon-chart-title"
-              class="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2 pl-1"
-            >
-              Графік потужності
-            </h2>
+            <div class="flex justify-between items-center mb-2 pl-1">
+              <h2
+                id="mon-chart-title"
+                class="text-sm font-bold text-gray-700 dark:text-gray-200"
+              >
+                Графік потужності
+              </h2>
+
+              <div
+                id="energy-range-selector"
+                class="hidden flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1"
+              >
+                <button
+                  onclick="window.changeEnergyRange('day')"
+                  id="btn-range-day"
+                  class="px-3 py-1 text-xs rounded-md font-medium transition bg-white dark:bg-gray-600 shadow-sm text-gray-800 dark:text-white"
+                >
+                  День
+                </button>
+                <button
+                  onclick="window.changeEnergyRange('week')"
+                  id="btn-range-week"
+                  class="px-3 py-1 text-xs rounded-md font-medium transition text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+                >
+                  Тиждень
+                </button>
+                <button
+                  onclick="window.changeEnergyRange('month')"
+                  id="btn-range-month"
+                  class="px-3 py-1 text-xs rounded-md font-medium transition text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+                >
+                  Місяць
+                </button>
+              </div>
+            </div>
+
             <div class="relative h-64 w-full">
               <canvas id="monitoringChart"></canvas>
             </div>
