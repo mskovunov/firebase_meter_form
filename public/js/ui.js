@@ -2,13 +2,43 @@
 
 export const translations = {
     ru: {
-        subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", powerOn: "Питание ЕСТЬ", powerOff: "Питание ОТСУТСТВУЕТ", subOn: "Работа от сети 220В", subOff: "Работа от аккумулятора", battery: "Заряд АКБ", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Есть свет", statOff: "Нет света", hShort: "ч", mShort: "мин", dataInfo: "Данные за последние ~48 часов"
+        subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", 
+        powerOn: "Питание ЕСТЬ", powerOff: "Питание ОТСУТСТВУЕТ", subOn: "Работа от сети 220В", subOff: "Работа от аккумулятора", 
+        battery: "Заряд АКБ", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", 
+        lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", 
+        gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Есть свет", statOff: "Нет света", hShort: "ч", mShort: "мин", 
+        dataInfo: "Данные за последние ~48 часов",
+        // НОВЫЕ ПЕРЕВОДЫ
+        monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
+        btnDay: "День", btnWeek: "Неделя", btnMonth: "Месяц",
+        cVoltage: "Напряжение (V)", cPower: "Мощность (W)", cDaily: "За сегодня (kWh)",
+        cEnergyDay: "Потребление по дням (kWh)", cEnergyWeek: "Потребление по неделям (kWh)", cEnergyMonth: "Потребление по месяцам (kWh)"
     },
     uk: {
-        subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", powerOn: "Світло Є", powerOff: "Світла НЕМАЄ", subOn: "Робота від мережі 220В", subOff: "Робота від акумулятора", battery: "Заряд АКБ", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Є світло", statOff: "Немає світла", hShort: "год", mShort: "хв", dataInfo: "Дані за останні ~48 годин"
+        subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
+        powerOn: "Світло Є", powerOff: "Світла НЕМАЄ", subOn: "Робота від мережі 220В", subOff: "Робота від акумулятора", 
+        battery: "Заряд АКБ", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", 
+        lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", 
+        gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Є світло", statOff: "Немає світла", hShort: "год", mShort: "хв", 
+        dataInfo: "Дані за останні ~48 годин",
+        // НОВЫЕ ПЕРЕВОДЫ
+        monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
+        btnDay: "День", btnWeek: "Тиждень", btnMonth: "Місяць",
+        cVoltage: "Напруга (V)", cPower: "Потужність (W)", cDaily: "За сьогодні (kWh)",
+        cEnergyDay: "Споживання по днях (kWh)", cEnergyWeek: "Споживання по тижнях (kWh)", cEnergyMonth: "Споживання по місяцях (kWh)"
     },
     en: {
-        subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", powerOn: "Power ON", powerOff: "Power OFF", subOn: "Main grid 220V active", subOff: "Running on battery", battery: "Battery Level", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Power ON", statOff: "Power OFF", hShort: "h", mShort: "m", dataInfo: "Data for the last ~48 hours"
+        subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
+        powerOn: "Power ON", powerOff: "Power OFF", subOn: "Main grid 220V active", subOff: "Running on battery", 
+        battery: "Battery Level", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", 
+        lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", 
+        gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Power ON", statOff: "Power OFF", hShort: "h", mShort: "m", 
+        dataInfo: "Data for the last ~48 hours",
+        // НОВЫЕ ПЕРЕВОДЫ
+        monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
+        btnDay: "Day", btnWeek: "Week", btnMonth: "Month",
+        cVoltage: "Voltage (V)", cPower: "Power (W)", cDaily: "Today (kWh)",
+        cEnergyDay: "Consumption by day (kWh)", cEnergyWeek: "Consumption by week (kWh)", cEnergyMonth: "Consumption by month (kWh)"
     }
 };
 
@@ -88,7 +118,10 @@ export function applyLanguage(lang) {
         't-history': t.history, 't-last-on': t.lastOn, 't-last-off': t.lastOff,
         't-graph-title': t.gTitle, 't-stats-title': t.gStatsTitle, 't-data-info': t.dataInfo,
         'm-home': t.mHome, 'm-monitoring': t.mMonitoring, 'm-graphs': t.mGraphs, 
-        'm-settings': t.mSettings, 'm-about': t.mAbout
+        'm-settings': t.mSettings, 'm-about': t.mAbout,
+        // НОВЫЕ ID
+        't-mon-voltage': t.monVoltage, 't-mon-power': t.monPower, 't-mon-energy': t.monEnergy, 't-mon-daily': t.monDaily,
+        'btn-range-day': t.btnDay, 'btn-range-week': t.btnWeek, 'btn-range-month': t.btnMonth
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);

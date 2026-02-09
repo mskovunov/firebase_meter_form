@@ -1,20 +1,27 @@
 // js/charts.js
 
-// Реєструємо плагін Chart.js для відображення цифр на стовпчиках
 try {
     if (typeof ChartDataLabels !== 'undefined') {
         Chart.register(ChartDataLabels);
     }
 } catch (e) { console.error(e); }
 
-// Внутрішні змінні модуля
-let chartInstance = null;      // Графік заряду (Line)
-let statsChartInstance = null; // Графік статистики світла (Bar)
-let monChartInstance = null;   // Графік моніторингу (Line/Bar)
+let chartInstance = null;
+let statsChartInstance = null;
+let monChartInstance = null;
 
-let monCurrentMode = 'power';  // Поточний режим: 'voltage', 'power', 'energy', 'daily'
-let energyRange = 'day';       // Діапазон для лічильника: 'day', 'week', 'month'
-let monDataCache = [];         // Кеш даних для моніторингу
+let monCurrentMode = 'power';
+let energyRange = 'day';
+let monDataCache = [];
+let currentTrans = {}; // Храним переводы здесь
+
+// === CONFIGURATION ===
+// Функция для обновления языка внутри модуля графиков
+export function updateChartConfig(translations) {
+    currentTrans = translations;
+    // Если график уже есть - перерисуем его с новым языком
+    if(monDataCache.length > 0) updateMonitoringChart();
+}
 
 // === HELPERS ===
 function formatDateDDMM(date) {
@@ -23,7 +30,7 @@ function formatDateDDMM(date) {
     return `${d}.${m}`;
 }
 
-// === 1. ГОЛОВНИЙ ГРАФІК (ЗАРЯД) ===
+// === 1. MAIN CHART (BATTERY) ===
 export function updateMainChart(docs) {
     const reversedDocs = [...docs].reverse();
     const labels = reversedDocs.map(d => (d.timestamp && d.timestamp.toDate) ? d.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '');
@@ -51,7 +58,7 @@ export function updateMainChart(docs) {
     }
 }
 
-// === 2. ГРАФІК СТАТИСТИКИ (НАЯВНІСТЬ СВІТЛА) ===
+// === 2. STATS CHART ===
 export function updateStatsChart(docs, translations, currentLang) {
     const stats = calculateDailyStats(docs);
     const labels = Object.keys(stats).sort((a, b) => {
@@ -166,14 +173,10 @@ function calculateDailyStats(docs) {
     return stats;
 }
 
-// === 3. МОНІТОРИНГ (ПОТУЖНІСТЬ ТА ЛІЧИЛЬНИК) ===
+// === 3. MONITORING CHARTS ===
 
-// Функція зміни діапазону (викликається кнопками)
 export function changeEnergyRange(range) {
-    console.log("Range changed to:", range); // Дебаг
     energyRange = range;
-    
-    // Оновлюємо стилі кнопок
     ['day', 'week', 'month'].forEach(r => {
         const btn = document.getElementById(`btn-range-${r}`);
         if(btn) {
@@ -186,24 +189,18 @@ export function changeEnergyRange(range) {
             }
         }
     });
-
-    // Перемальовуємо графік
     updateMonitoringChart();
 }
 
-// Функція перемикання режиму (Напруга / Потужність / Лічильник)
 export function setMonChartMode(mode, docs, todayStartEnergy) {
-    console.log("Mode changed to:", mode); // Дебаг
     monCurrentMode = mode;
-    monDataCache = docs; // Оновлюємо кеш даних
+    monDataCache = docs;
     
-    // Скидання стилів карток
     document.querySelectorAll('.monitor-card').forEach(el => {
         el.classList.remove('border-2', 'bg-blue-50', 'bg-orange-50', 'bg-purple-50', 'bg-green-50', 'dark:bg-blue-900/20', 'dark:bg-orange-900/20', 'dark:bg-purple-900/20', 'dark:bg-green-900/20', 'border-blue-500', 'border-orange-500', 'border-purple-500', 'border-green-500');
         el.classList.add('bg-white', 'dark:bg-gray-800', 'border', 'border-gray-200', 'dark:border-gray-700');
     });
     
-    // Встановлення активної картки
     let activeId = -1;
     let colorClass = ''; let bgClass = ''; let darkBgClass = '';
 
@@ -219,12 +216,10 @@ export function setMonChartMode(mode, docs, todayStartEnergy) {
        card.classList.add('border-2', colorClass, bgClass, darkBgClass);
     }
 
-    // Відображення кнопок масштабу тільки для 'energy'
     const selector = document.getElementById('energy-range-selector');
     if (selector) {
         if (mode === 'energy') {
             selector.classList.remove('hidden');
-            // Не скидаємо на 'day' автоматично, щоб зберегти вибір користувача
             changeEnergyRange(energyRange); 
         } else {
             selector.classList.add('hidden');
@@ -232,9 +227,6 @@ export function setMonChartMode(mode, docs, todayStartEnergy) {
         }
     }
 }
-
-// Головна функція малювання графіка моніторингу
-// js/charts.js (обновленная функция)
 
 export function updateMonitoringChart(todayStartEnergy) {
     if (!monDataCache || !monDataCache.length) return;
@@ -250,41 +242,40 @@ export function updateMonitoringChart(todayStartEnergy) {
     let label = '';
     let color = '';
     let bgColor = '';
+    
+    // Используем переводы (или дефолтный текст, если еще не загрузились)
+    const t = currentTrans;
 
-    // === ЛОГІКА ДЛЯ ЛІЧИЛЬНИКА (СТОВПЧИКИ) ===
     if (monCurrentMode === 'energy') {
         chartType = 'bar';
-        
         const processed = processBarData(monDataCache, energyRange);
         labels = processed.labels;
         data = processed.data;
         
-        if(energyRange === 'day') label = 'Споживання по днях (kWh)';
-        else if(energyRange === 'week') label = 'Споживання по тижнях (kWh)';
-        else label = 'Споживання по місяцях (kWh)';
+        if(energyRange === 'day') label = t.cEnergyDay || 'Споживання по днях (kWh)';
+        else if(energyRange === 'week') label = t.cEnergyWeek || 'Споживання по тижнях (kWh)';
+        else label = t.cEnergyMonth || 'Споживання по місяцях (kWh)';
         
-        color = '#8B5CF6'; 
-        bgColor = 'rgba(139, 92, 246, 0.6)';
-    } 
-    // === ЛОГІКА ДЛЯ ІНШИХ (ЛІНІЇ) ===
-    else {
-        // Беремо копію масиву без реверсу (бо в app.js вже [Старі ... Нові])
+        color = '#8B5CF6'; bgColor = 'rgba(139, 92, 246, 0.6)';
+    } else {
         const chartData = [...monDataCache];
-        
         labels = chartData.map(d => d.created_at ? d.created_at.split(' ')[1].substring(0,5) : '');
         
         if (monCurrentMode === 'voltage') {
             data = chartData.map(d => d.voltage);
-            label = 'Напруга (V)'; color = '#F59E0B'; bgColor = 'rgba(245, 158, 11, 0.2)';
+            label = t.cVoltage || 'Напруга (V)'; 
+            color = '#F59E0B'; bgColor = 'rgba(245, 158, 11, 0.2)';
         } else if (monCurrentMode === 'power') {
             data = chartData.map(d => d.power);
-            label = 'Потужність (W)'; color = '#3B82F6'; bgColor = 'rgba(59, 130, 246, 0.2)';
+            label = t.cPower || 'Потужність (W)'; 
+            color = '#3B82F6'; bgColor = 'rgba(59, 130, 246, 0.2)';
         } else if (monCurrentMode === 'daily') {
             data = chartData.map(d => {
                 if(todayStartEnergy) return Math.max(0, (d.energy - todayStartEnergy)).toFixed(3);
                 return 0;
             });
-            label = 'За сьогодні (kWh)'; color = '#10B981'; bgColor = 'rgba(16, 185, 129, 0.2)';
+            label = t.cDaily || 'За сьогодні (kWh)'; 
+            color = '#10B981'; bgColor = 'rgba(16, 185, 129, 0.2)';
         }
     }
     
@@ -330,42 +321,24 @@ export function updateMonitoringChart(todayStartEnergy) {
                     grid: { display: false }, 
                     ticks: { 
                         color: textColor,
-                        maxRotation: 0, // Забороняємо нахил тексту
-                        autoSkip: false, // ВИМИКАЄМО авто-пропуск для ручного контролю
-                        
-                        // Ручна логіка вибору підписів
+                        maxRotation: 0,
+                        autoSkip: false,
                         callback: function(val, index, values) {
-                            // Для стовпчиків (Energy) залишаємо стандартну поведінку
                             if (chartType === 'bar') {
-                                // Тут треба трохи хитрості, бо autoSkip: false покаже всі
-                                // Тому вручну прорідимо, якщо їх багато
                                 const total = values.length;
                                 if (total <= 12) return this.getLabelForValue(val);
                                 if (index % 2 === 0) return this.getLabelForValue(val);
                                 return null;
                             }
-                            
-                            // Для ліній (Напруга, Потужність)
                             const total = values.length;
-                            
-                            // 1. Якщо точок мало, показуємо всі
                             if (total <= 6) return this.getLabelForValue(val);
-
-                            // 2. ЗАВЖДИ показуємо ОСТАННЮ точку (актуальний час)
                             if (index === total - 1) return this.getLabelForValue(val);
-                            
-                            // 3. Розраховуємо крок, щоб показати ще ~5 точок
                             const targetCount = 6; 
                             const step = Math.ceil(total / targetCount);
-                            
-                            // Показуємо точку, якщо вона потрапляє в крок
-                            // АЛЕ: не показуємо її, якщо вона занадто близько до останньої (щоб не налізло)
-                            // (total - step * 0.6) - це "буферна зона" перед кінцем
                             if (index % step === 0 && index < total - step * 0.6) {
                                 return this.getLabelForValue(val);
                             }
-                            
-                            return null; // Ховаємо решту
+                            return null;
                         }
                     } 
                 },
@@ -379,41 +352,33 @@ export function updateMonitoringChart(todayStartEnergy) {
     });
 }
 
-// === ЛОГІКА ГРУПУВАННЯ ДЛЯ СТОВПЧИКІВ ===
 function processBarData(docs, rangeType) {
     if (!docs || docs.length < 2) return { labels: [], data: [] };
 
     const grouped = {};
-    
     const getWeekNumber = (d) => {
         d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
         d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
         var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
         return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
     };
-    
-    const getMonthNameUA = (idx) => ["Січ", "Лют", "Бер", "Кві", "Тра", "Чер", "Лип", "Сер", "Вер", "Жов", "Лис", "Гру"][idx];
+    const getMonthNameUA = (idx) => ["Січ/Jan", "Лют/Feb", "Бер/Mar", "Кві/Apr", "Тра/May", "Чер/Jun", "Лип/Jul", "Сер/Aug", "Вер/Sep", "Жов/Oct", "Лис/Nov", "Гру/Dec"][idx];
 
-    // docs у нас відсортовані (newest -> oldest) або навпаки. 
-    // Нам треба просто пройтись по всіх.
     docs.forEach(doc => {
-        // Парсинг дати
         let dateObj = new Date(doc.created_at); 
         if (isNaN(dateObj)) return;
 
-        let key = "";
-        let label = "";
-        let sortKey = 0;
+        let key = ""; let label = ""; let sortKey = 0;
 
         if (rangeType === 'day') {
-             key = dateObj.toISOString().split("T")[0]; // YYYY-MM-DD
+             key = dateObj.toISOString().split("T")[0]; 
              label = `${String(dateObj.getDate()).padStart(2, "0")}.${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
              sortKey = dateObj.getTime();
         } else if (rangeType === 'week') {
              const weekNum = getWeekNumber(dateObj);
              const year = dateObj.getFullYear();
              key = `${year}-W${weekNum}`;
-             label = `Тиж.${weekNum}`;
+             label = `W${weekNum}`;
              sortKey = year * 100 + weekNum;
         } else if (rangeType === 'month') {
              const month = dateObj.getMonth();
@@ -426,34 +391,24 @@ function processBarData(docs, rangeType) {
         if (!grouped[key]) {
             grouped[key] = { min: Infinity, max: -Infinity, label: label, sort: sortKey };
         }
-        
         const val = doc.energy;
         if (val < grouped[key].min) grouped[key].min = val;
         if (val > grouped[key].max) grouped[key].max = val;
     });
 
-    // Сортуємо ключі за часом (зліва направо)
     let sortedKeys = Object.keys(grouped).sort((a, b) => grouped[a].sort - grouped[b].sort);
+    if (rangeType === 'day') sortedKeys = sortedKeys.slice(-7);
+    if (rangeType === 'week') sortedKeys = sortedKeys.slice(-8);
+    if (rangeType === 'month') sortedKeys = sortedKeys.slice(-12);
 
-    // Обрізаємо кількість стовпчиків, щоб не забивати графік
-    if (rangeType === 'day') sortedKeys = sortedKeys.slice(-7);    // Останні 7 днів
-    if (rangeType === 'week') sortedKeys = sortedKeys.slice(-8);   // Останні 8 тижнів
-    if (rangeType === 'month') sortedKeys = sortedKeys.slice(-12); // Останній рік
-
-    const resultLabels = [];
-    const resultData = [];
-
+    const resultLabels = []; const resultData = [];
     sortedKeys.forEach(key => {
         const item = grouped[key];
         let consumption = item.max - item.min;
-        
-        // Фільтрація помилок (якщо глюк лічильника)
         if (consumption < 0) consumption = 0;
         if (consumption > 1000) consumption = 0; 
-
         resultLabels.push(item.label);
         resultData.push(consumption.toFixed(2));
     });
-
     return { labels: resultLabels, data: resultData };
 }

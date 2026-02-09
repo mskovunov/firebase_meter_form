@@ -34,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     UI.applyLanguage(currentLang);
+    // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
+    Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
     
     window.setMonChartMode = (mode) => {
@@ -101,6 +103,8 @@ function startMainListener() {
 }
 
 function refreshData() {
+    // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
+    Charts.updateChartConfig(UI.translations[currentLang]);
     if(currentDocs.length > 0) {
         UI.renderHome(currentDocs, currentLang);
         Charts.updateMainChart(currentDocs);
