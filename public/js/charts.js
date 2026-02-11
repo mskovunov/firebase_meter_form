@@ -370,9 +370,16 @@ function processBarData(docs, rangeType) {
 
         let key = ""; let label = ""; let sortKey = 0;
 
-        if (rangeType === 'day') {
-             key = dateObj.toISOString().split("T")[0]; 
-             label = `${String(dateObj.getDate()).padStart(2, "0")}.${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+if (rangeType === 'day') {
+             // ВИПРАВЛЕННЯ: Формуємо ключ вручну з локального часу, а не через ISO (UTC)
+             const year = dateObj.getFullYear();
+             const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+             const day = String(dateObj.getDate()).padStart(2, "0");
+             
+             key = `${year}-${month}-${day}`; 
+             
+             // Підпис залишається як був
+             label = `${day}.${month}`;
              sortKey = dateObj.getTime();
         } else if (rangeType === 'week') {
              const weekNum = getWeekNumber(dateObj);
