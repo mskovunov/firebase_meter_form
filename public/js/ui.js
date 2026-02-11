@@ -12,7 +12,10 @@ export const translations = {
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
         btnDay: "День", btnWeek: "Неделя", btnMonth: "Месяц",
         cVoltage: "Напряжение (V)", cPower: "Мощность (W)", cDaily: "За сегодня (kWh)",
-        cEnergyDay: "Потребление по дням (kWh)", cEnergyWeek: "Потребление по неделям (kWh)", cEnergyMonth: "Потребление по месяцам (kWh)"
+        cEnergyDay: "Потребление по дням (kWh)", cEnergyWeek: "Потребление по неделям (kWh)", cEnergyMonth: "Потребление по месяцам (kWh)",
+        stTitle: "Интервал обновления", stDesc: "Как часто устройство отправляет данные (сек).", 
+        btnSave: "Сохранить", stInfo: "Изменения вступят в силу после следующего сеанса связи.",
+        msgSaved: "Сохранено успешно!", msgError: "Ошибка сохранения"
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
@@ -25,7 +28,10 @@ export const translations = {
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
         btnDay: "День", btnWeek: "Тиждень", btnMonth: "Місяць",
         cVoltage: "Напруга (V)", cPower: "Потужність (W)", cDaily: "За сьогодні (kWh)",
-        cEnergyDay: "Споживання по днях (kWh)", cEnergyWeek: "Споживання по тижнях (kWh)", cEnergyMonth: "Споживання по місяцях (kWh)"
+        cEnergyDay: "Споживання по днях (kWh)", cEnergyWeek: "Споживання по тижнях (kWh)", cEnergyMonth: "Споживання по місяцях (kWh)",
+        stTitle: "Інтервал оновлення", stDesc: "Як часто пристрій надсилає дані (сек).", 
+        btnSave: "Зберегти", stInfo: "Зміни набудуть чинності після наступного сеансу зв'язку.",
+        msgSaved: "Збережено успішно!", msgError: "Помилка збереження"
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
@@ -38,13 +44,16 @@ export const translations = {
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
         btnDay: "Day", btnWeek: "Week", btnMonth: "Month",
         cVoltage: "Voltage (V)", cPower: "Power (W)", cDaily: "Today (kWh)",
-        cEnergyDay: "Consumption by day (kWh)", cEnergyWeek: "Consumption by week (kWh)", cEnergyMonth: "Consumption by month (kWh)"
+        cEnergyDay: "Consumption by day (kWh)", cEnergyWeek: "Consumption by week (kWh)", cEnergyMonth: "Consumption by month (kWh)",
+        stTitle: "Update Interval", stDesc: "How often the device sends data (sec).", 
+        btnSave: "Save", stInfo: "Changes will take effect after the next device connection.",
+        msgSaved: "Saved successfully!", msgError: "Error saving"
     }
 };
 
 export function initUI(config) {
     // Setup Navigation
-    const navs = ['home', 'monitoring', 'graphs'];
+    const navs = ['home', 'monitoring', 'graphs', 'settings'];
     navs.forEach(view => {
         document.getElementById(`nav-${view}`).addEventListener('click', () => config.onViewChange(view));
     });
@@ -96,17 +105,53 @@ export function initUI(config) {
 }
 
 export function showView(viewName) {
-    ['home', 'graphs', 'monitoring'].forEach(v => {
-        document.getElementById(`view-${v}`).classList.add('hidden');
-        document.getElementById(`nav-${v}`).classList.remove('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
+    // 1. Список усіх вкладок (Додав 'settings')
+    const views = ['home', 'monitoring', 'graphs', 'settings'];
+
+    // 2. Перемикання самих екранів (Views)
+    views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (el) {
+            if (v === viewName) {
+                el.classList.remove('hidden');
+                // Невелика затримка для анімації opacity
+                setTimeout(() => el.classList.remove('opacity-0'), 10);
+                el.classList.add('flex');
+            } else {
+                el.classList.add('hidden', 'opacity-0');
+                el.classList.remove('flex');
+            }
+        }
     });
 
-    document.getElementById(`view-${viewName}`).classList.remove('hidden');
-    document.getElementById(`nav-${viewName}`).classList.add('bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400');
-    
-    // Close menu automatically on mobile
-    document.getElementById('sidebar').classList.add('-translate-x-full');
-    document.getElementById('menu-overlay').classList.add('hidden');
+    // 3. Перемикання стилів меню (Active/Inactive)
+    // Класи для АКТИВНОЇ кнопки
+    const activeClasses = ['bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400'];
+    // Класи для НЕАКТИВНОЇ кнопки
+    const inactiveClasses = ['text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800'];
+
+    views.forEach(v => {
+        const btn = document.getElementById(`nav-${v}`);
+        if (btn) {
+            if (v === viewName) {
+                // Робимо кнопку активною
+                btn.classList.add(...activeClasses);
+                btn.classList.remove(...inactiveClasses);
+            } else {
+                // Робимо кнопку неактивною (скидаємо синій колір)
+                btn.classList.remove(...activeClasses);
+                btn.classList.add(...inactiveClasses);
+            }
+        }
+    });
+
+    // 4. Закриваємо мобільне меню після кліку
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('menu-overlay');
+    if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden', 'opacity-0');
+    }
 }
 
 export function applyLanguage(lang) {
@@ -121,7 +166,11 @@ export function applyLanguage(lang) {
         'm-settings': t.mSettings, 'm-about': t.mAbout,
         // НОВЫЕ ID
         't-mon-voltage': t.monVoltage, 't-mon-power': t.monPower, 't-mon-energy': t.monEnergy, 't-mon-daily': t.monDaily,
-        'btn-range-day': t.btnDay, 'btn-range-week': t.btnWeek, 'btn-range-month': t.btnMonth
+        'btn-range-day': t.btnDay, 'btn-range-week': t.btnWeek, 'btn-range-month': t.btnMonth,
+        't-set-interval-title': t.stTitle,
+        't-set-desc': t.stDesc,
+        't-btn-save': t.btnSave,
+        't-set-info': t.stInfo
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);

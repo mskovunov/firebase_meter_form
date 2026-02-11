@@ -38,19 +38,38 @@ function doGet(e) {
     "muteHttpExceptions": true 
   };
 
-  // 6. Отправляем запрос в Firestore
+  // 6. Отправляем запрос в Firestore (ЗАПИСЬ)
   try {
-    var response = UrlFetchApp.fetch(url, options);
-    var respCode = response.getResponseCode();
-    
-    if (respCode == 200) {
-      return ContentService.createTextOutput("Success: Data saved to Firestore");
-    } else {
-      return ContentService.createTextOutput("Error Firestore: " + response.getContentText());
-    }
+    UrlFetchApp.fetch(url, options);
+    // Ошибки записи игнорируем, чтобы код прошел дальше к чтению настроек
   } catch (error) {
-    return ContentService.createTextOutput("Script Error: " + error.toString());
+    // Log error if needed
   }
+
+  // --- ЧАСТЬ 2: ЧТЕНИЕ НАСТРОЕК (ДОБАВЛЕНО) ---
+  // Читаем из коллекции 'esp32_settings', документ 'config'
+  var urlRead = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + 
+            "/databases/(default)/documents/esp32_settings/config?key=" + FIREBASE_API_KEY;
+
+  var nextInterval = 300; // Значение по умолчанию (300 сек = 5 мин), если база недоступна
+
+  try {
+    var responseRead = UrlFetchApp.fetch(urlRead, { "method": "get", "muteHttpExceptions": true });
+    
+    if (responseRead.getResponseCode() == 200) {
+       var json = JSON.parse(responseRead.getContentText());
+       
+       // Путь к полю: fields -> update_interval -> integerValue
+       if (json.fields && json.fields.update_interval) {
+         nextInterval = parseInt(json.fields.update_interval.integerValue);
+       }
+    }
+  } catch (e) {
+    // Если документа нет или ошибка сети, останется 300
+  }
+
+  // Возвращаем ESP32 чистое число секунд для таймера
+  return ContentService.createTextOutput(nextInterval.toString());
 }
 
 function forceAuth() {

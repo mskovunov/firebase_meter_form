@@ -42,6 +42,9 @@ HttpClient httpGsm(clientGsm, "api.pushingbox.com", 80);
 bool isPowerOn = true;
 unsigned long lastKeepAlive = 0;
 
+// ИЗМЕНЕНИЕ: Переменная для динамического интервала (по умолчанию 5 минут)
+unsigned long sendInterval = 300000; 
+
 // Предварительное объявление функций, чтобы не было ошибок компиляции
 int getBatteryPercentage(bool charging, float &outVoltage);
 void sendSmart(int val, String deviceStatus, int batLevel, float voltage);
@@ -127,15 +130,18 @@ void loop()
         }
     }
 
-    // ТЕПЕРЬ МОЖНО ЧАЩЕ! Например, раз в 5 минут (300000 мс) / 60000 - 1 мин
+    // ТЕПЕРЬ МОЖНО ЧАЩЕ! ИЗМЕНЕНИЕ: Используем переменную sendInterval вместо числа 60000
     // Wi-Fi "бесплатный", а GSM будет тратить лимит PushingBox только при аварии
-    if (millis() - lastKeepAlive > 60000)
+    if (millis() - lastKeepAlive > sendInterval)
     {
         // ИЗМЕНЕНИЕ: Получаем вольтаж
         float currentVolt = 0.0;
         int bat = getBatteryPercentage(isPowerOn, currentVolt);
 
-        SerialMon.println("Routine Check...");
+        SerialMon.print("Routine Check (Interval: ");
+        SerialMon.print(sendInterval / 1000);
+        SerialMon.println("s)...");
+        
         sendSmart(isPowerOn ? 1 : 0, "RoutineCheck", bat, currentVolt);
         lastKeepAlive = millis();
     }
@@ -187,7 +193,17 @@ void sendSmart(int val, String deviceStatus, int batLevel, float voltage)
 
             if (httpCode == 200)
             {
-                SerialMon.println("Success! (Unlimited)");
+                // ИЗМЕНЕНИЕ: Читаем ответ от Google Script (новое значение интервала)
+                String payload = http.getString();
+                SerialMon.print("Success! Server interval: ");
+                SerialMon.println(payload);
+                
+                // Пробуем обновить интервал
+                int newSec = payload.toInt();
+                if (newSec >= 10 && newSec <= 3600) { // Защита: от 10 сек до 1 часа
+                    sendInterval = newSec * 1000;
+                }
+                
                 sent = true;
             }
             else
@@ -240,7 +256,7 @@ void sendSmart(int val, String deviceStatus, int batLevel, float voltage)
     }
 }
 
-// === БАТАРЕЯ (ФИНАЛЬНАЯ КАЛИБРОВКА: 2.10 и 2.42) ===
+// === БАТАРЕЯ (ФИНАЛЬНАЯ КАЛИБРОВКА: 2.12 и 2.34 - КАК ВЫ ПРОСИЛИ) ===
 // === БАТАРЕЯ (УБИРАЕМ ЗАВЫШЕНИЕ ПРИ РАЗРЯДЕ) ===
 int getBatteryPercentage(bool charging, float &outVoltage)
 {

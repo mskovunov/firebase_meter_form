@@ -2,7 +2,7 @@
 import { db } from './config.js';
 import * as UI from './ui.js';
 import * as Charts from './charts.js';
-import { collection, query, orderBy, limit, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
 let currentDocs = [];
@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.changeEnergyRange = (range) => {
         Charts.changeEnergyRange(range);
     };
+    // 2. Експортуємо функцію збереження у вікно
+    window.saveSettings = () => {
+        saveSettingsToDB();
+    };
 });
 
 // === LOGIC ===
@@ -57,6 +61,11 @@ function handleViewChange(viewName) {
         // Убрали принудительный вызов handleChartModeChange отсюда,
         // чтобы не рисовать пустой график до загрузки данных.
         // Отрисовка произойдет сама внутри startMonitoringListener -> onSnapshot
+    }
+
+    // 3. ЯКЩО ВІДКРИЛИ НАЛАШТУВАННЯ - ВАНТАЖИМО ДАНІ
+    if (viewName === 'settings') { // Перевір, щоб в HTML ID кнопки був nav-settings, а view-settings
+        loadSettingsFromDB();
     }
 }
 
@@ -155,4 +164,81 @@ function startMonitoringListener() {
         }
 
     }, (err) => console.error("Mon Error", err));
+}
+
+// === SETTINGS LOGIC (НОВІ ФУНКЦІЇ) ===
+
+// Назви в базі даних (ЗМІНИ ЯКЩО У ТЕБЕ ІНШІ)
+const SETTINGS_COLLECTION = "esp32_settings";
+const CONFIG_DOC = "config";
+
+async function loadSettingsFromDB() {
+    const input = document.getElementById('input-interval');
+    // Блокуємо інпут поки вантажиться
+    input.disabled = true;
+    input.classList.add('opacity-50');
+
+    try {
+        const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            // Припускаємо, що поле називається 'update_interval'
+            if (data.update_interval) {
+                input.value = data.update_interval;
+            }
+        } else {
+            console.log("No settings doc found!");
+        }
+    } catch (e) {
+        console.error("Error loading settings:", e);
+    } finally {
+        input.disabled = false;
+        input.classList.remove('opacity-50');
+    }
+}
+
+async function saveSettingsToDB() {
+    const input = document.getElementById('input-interval');
+    const status = document.getElementById('settings-status');
+    const newVal = parseInt(input.value);
+
+    if (!newVal || newVal < 5) {
+        alert("Value must be at least 5 seconds");
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-settings');
+    const originalBtnText = btn.innerHTML;
+    
+    // UI Loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
+        
+        // setDoc з {merge: true} створить документ, якщо його немає, або оновить поле
+        await setDoc(docRef, { 
+            update_interval: newVal,
+            updated_at: new Date() // Корисно знати, коли міняли
+        }, { merge: true });
+
+        // Show success
+        status.innerText = UI.translations[currentLang].msgSaved || "Saved!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-green-500";
+        
+        setTimeout(() => {
+            status.classList.add('opacity-0');
+        }, 3000);
+
+    } catch (e) {
+        console.error("Error saving:", e);
+        status.innerText = UI.translations[currentLang].msgError || "Error!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-red-500";
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
+    }
 }
