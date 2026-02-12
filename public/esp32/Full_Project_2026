@@ -1,0 +1,390 @@
+#define TINY_GSM_MODEM_SIM800
+#define TINY_GSM_RX_BUFFER 1024
+
+#include <WiFi.h>
+#include <HTTPClient.h>         // Для GAS и PushingBox
+#include <TinyGsmClient.h>
+#include <ArduinoHttpClient.h>  // Для GSM PushingBox
+#include <PZEM004Tv30.h>        // Для PZEM
+#include <Firebase_ESP_Client.h>
+#include <addons/TokenHelper.h>
+#include <esp_task_wdt.h>       // Сторожевой таймер
+#include <time.h>               // Время для логов
+
+// ================= 1. НАСТРОЙКИ СЕТИ И ПРОЕКТА =================
+const char *wifi_ssid = "Xiaomi_9D58";
+const char *wifi_pass = "Am5084ak";
+
+// --- Google Apps Script (GAS) ---
+String GAS_SCRIPT_ID = "AKfycbyvn_NXzYXWankzZan3efMbUaQZNpjjNCBcmJNrGPHHkUoAfASHqMpmiy_Sm_Yuzt4d";
+
+// --- GSM PushingBox ---
+const char apn[] = "internet";
+const char user[] = "";
+const char pass[] = "";
+const char *DEVID = "vA48E437DF1936FA"; 
+
+// --- Firebase (Firestore) ---
+#define API_KEY "AIzaSyAsr-JbArcAu-7_csBxM6VDsC7hyPz7qB0"
+#define FIREBASE_PROJECT_ID "meter-form"
+#define USER_EMAIL "esp32@test.com"
+#define USER_PASSWORD "123456"
+
+// ================= 2. ПИНЫ И ОБОРУДОВАНИЕ =================
+// GSM (Serial2)
+#define MODEM_RST 23
+#define MODEM_TX 17
+#define MODEM_RX 16
+
+// PZEM (Serial1 - ВАЖНО: Используем Serial1 на кастомных пинах)
+#define PZEM_RX_PIN 26
+#define PZEM_TX_PIN 27
+
+// Датчики
+#define MAINS_PIN 4
+#define BAT_PIN 34
+
+// Тайм-аут зависания (120 секунд)
+#define WDT_TIMEOUT 120
+
+// Настройки времени
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 7200;     // UTC+2
+const int daylightOffset_sec = 3600; 
+
+// ================= 3. ОБЪЕКТЫ =================
+#define SerialMon Serial
+#define SerialAT Serial2   // GSM на Serial2
+
+// PZEM на Serial1 (HardwareSerial 1)
+HardwareSerial SerialPZEM(1); 
+PZEM004Tv30 pzem(SerialPZEM, PZEM_RX_PIN, PZEM_TX_PIN);
+
+// GSM Клиенты
+TinyGsm modem(SerialAT);
+TinyGsmClient clientGsm(modem);
+HttpClient httpGsm(clientGsm, "api.pushingbox.com", 80);
+
+// Firebase Объекты
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+// ================= 4. ПЕРЕМЕННЫЕ =================
+const bool ENABLE_WIFI = true;
+const bool ENABLE_GSM = false; //true;
+
+bool isPowerOn = true;
+
+// Таймеры
+unsigned long lastKeepAlive = 0;       // Для GAS/GSM (Статус)
+unsigned long sendInterval = 300000;   // Динамический интервал GAS (5 мин старт)
+unsigned long sendPzemPrevMillis = 0;  // Для PZEM (Firestore)
+
+// Предварительное объявление
+int getBatteryPercentage(bool charging, float &outVoltage);
+void sendSmart(int val, String deviceStatus, int batLevel, float voltage);
+String getCurrentTime();
+
+// ================= SETUP =================
+void setup() {
+    SerialMon.begin(115200);
+    delay(1000);
+
+    // 1. Настройка WDT (Сторожевой пес)
+SerialMon.println("Configuring WDT...");
+    
+    // 1. Сначала убиваем системный таймер по умолчанию
+    esp_task_wdt_deinit(); 
+    
+    // 2. Теперь настраиваем свой
+    esp_task_wdt_config_t wdt_config = {
+        .timeout_ms = WDT_TIMEOUT * 1000,
+        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+        .trigger_panic = true
+    };
+    
+    // 3. Инициализируем без ошибки
+    esp_task_wdt_init(&wdt_config);
+    esp_task_wdt_add(NULL);
+
+    pinMode(MAINS_PIN, INPUT);
+    pinMode(BAT_PIN, INPUT);
+
+    // 2. Инициализация GSM
+    if (ENABLE_GSM) {
+        SerialAT.begin(57600, SERIAL_8N1, MODEM_RX, MODEM_TX);
+        delay(1000);
+        SerialMon.println("Init Modem...");
+        modem.restart();
+        httpGsm.setHttpResponseTimeout(90000);
+    }
+    esp_task_wdt_reset(); // Кормим собаку
+
+    // 3. Инициализация Wi-Fi (С защитой от зависания)
+    if (ENABLE_WIFI) {
+        SerialMon.println("Init Wi-Fi...");
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(wifi_ssid, wifi_pass);
+        
+        unsigned long startWifi = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startWifi < 20000) {
+            SerialMon.print(".");
+            delay(300);
+            esp_task_wdt_reset();
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            SerialMon.println("\nWiFi Connected!");
+        } else {
+            SerialMon.println("\nWiFi Failed (will try later)");
+        }
+    }
+
+    // 4. Инициализация Времени (NTP)
+    if (WiFi.status() == WL_CONNECTED) {
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+        struct tm timeinfo;
+        unsigned long startNtp = millis();
+        while (!getLocalTime(&timeinfo) && millis() - startNtp < 10000) {
+            SerialMon.print(".");
+            delay(100);
+            esp_task_wdt_reset();
+        }
+        SerialMon.println("\nTime Synced: " + getCurrentTime());
+    }
+
+    // 5. Инициализация Firebase
+    config.api_key = API_KEY;
+    auth.user.email = USER_EMAIL;
+    auth.user.password = USER_PASSWORD;
+    config.token_status_callback = tokenStatusCallback;
+    Firebase.begin(&config, &auth);
+    Firebase.reconnectWiFi(true);
+
+    // 6. Проверка статуса питания
+    if (digitalRead(MAINS_PIN) == HIGH) {
+        isPowerOn = true;
+        SerialMon.println("STARTUP: Power ON");
+    } else {
+        isPowerOn = false;
+        SerialMon.println("STARTUP: Power OFF");
+    }
+
+    // 7. Отправка приветствия (GAS)
+    SerialMon.println("Sending Boot Info...");
+    float currentVolt = 0.0;
+    int bat = getBatteryPercentage(isPowerOn, currentVolt);
+    sendSmart(1, "SystemStart", bat, currentVolt);
+    
+    // Задержка перед первой отправкой PZEM
+    sendPzemPrevMillis = millis();
+}
+
+// ================= LOOP =================
+void loop() {
+    esp_task_wdt_reset(); // Кормим собаку
+
+    // Читаем датчик света (наличие 220В на входе)
+    int sensorVal = digitalRead(MAINS_PIN);
+    bool currentReading = (sensorVal == HIGH);
+
+    // --- ЗАДАЧА 1: МОМЕНТАЛЬНАЯ РЕАКЦИЯ НА СВЕТ (GAS/GSM) ---
+    if (currentReading != isPowerOn) {
+        delay(500); 
+        if (digitalRead(MAINS_PIN) == sensorVal) {
+            isPowerOn = currentReading;
+            float currentVolt = 0.0;
+            int bat = getBatteryPercentage(isPowerOn, currentVolt);
+
+            if (isPowerOn) {
+                SerialMon.println("EVENT: Power Restored");
+                sendSmart(1, "PowerRestored", bat, currentVolt);
+            } else {
+                SerialMon.println("EVENT: Power Lost");
+                sendSmart(0, "PowerLost", bat, currentVolt);
+            }
+            // Пауза для очистки буфера SSL после отправки
+            delay(2000); 
+        }
+    }
+
+    // --- ЗАДАЧА 2: ОТЧЕТ PZEM (FIREBASE) ---
+    // Раз в 60 сек (или как настроено), если есть Wi-Fi
+    if (WiFi.status() == WL_CONNECTED && Firebase.ready() && (millis() - sendPzemPrevMillis > 60000)) {
+        
+        sendPzemPrevMillis = millis();
+        esp_task_wdt_reset();
+
+        // 1. Читаем сырые данные
+        float voltage = pzem.voltage();
+        float current = pzem.current();
+        float power = pzem.power();
+        float energy = pzem.energy();
+
+        // 2. Фильтр ошибок (NaN)
+        if (isnan(voltage) || voltage < 0) voltage = 0.0;
+        if (isnan(current) || current < 0) current = 0.0;
+        if (isnan(power) || power < 0) power = 0.0;
+        if (isnan(energy) || energy < 0) energy = 0.0;
+
+        // 3. Округляем (как было в твоем коде)
+        double cleanVoltage = round(voltage * 10) / 10.0;
+        double cleanCurrent = round(current * 1000) / 1000.0;
+        double cleanPower = round(power * 10) / 10.0;
+        double cleanEnergy = round(energy * 1000) / 1000.0;
+
+        // 4. ВЫВОД В МОНИТОР ПОРТА (ВЕРНУЛ!)
+        String timeStr = getCurrentTime();
+        SerialMon.println("--------------------------------------");
+        SerialMon.printf("[%s] PZEM READINGS:\n", timeStr.c_str());
+        SerialMon.printf("Voltage: %.1f V\n", cleanVoltage);
+        SerialMon.printf("Current: %.3f A\n", cleanCurrent);
+        SerialMon.printf("Power:   %.1f W\n", cleanPower);
+        SerialMon.printf("Energy:  %.3f kWh\n", cleanEnergy);
+        SerialMon.println("Sending to Firebase...");
+        SerialMon.println("--------------------------------------");
+
+        // 5. Формируем JSON
+        FirebaseJson content;
+        content.set("fields/voltage/doubleValue", cleanVoltage);
+        content.set("fields/current/doubleValue", cleanCurrent);
+        content.set("fields/power/doubleValue", cleanPower);
+        content.set("fields/energy/doubleValue", cleanEnergy);
+        content.set("fields/created_at/stringValue", timeStr);
+        content.set("fields/timestamp_unix/integerValue", (int)time(nullptr));
+
+        // 6. Отправляем
+        if (Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", "meter_readings", content.raw())) {
+            SerialMon.println(">>> FIREBASE SUCCESS: Data saved.");
+        } else {
+            SerialMon.printf(">>> FIREBASE ERROR: %s\n", fbdo.errorReason().c_str());
+        }
+        
+        // ВАЖНО: Сдвигаем таймер GAS, чтобы они не сработали одновременно и не убили память
+        lastKeepAlive = millis() + 5000; 
+        
+        esp_task_wdt_reset();
+    }
+
+    // --- ЗАДАЧА 3: РЕГУЛЯРНЫЙ ОТЧЕТ БАТАРЕИ (GAS/GSM) ---
+    if (millis() - lastKeepAlive > sendInterval) {
+        
+        // Дополнительная проверка: если только что (менее 5 сек назад) слали PZEM, ждем еще
+        if (millis() - sendPzemPrevMillis < 5000) {
+            // Пропускаем такт, ждем следующего круга
+        } else {
+            float currentVolt = 0.0;
+            int bat = getBatteryPercentage(isPowerOn, currentVolt);
+
+            SerialMon.print("Routine Check (Int: "); SerialMon.print(sendInterval/1000); SerialMon.println("s)...");
+            sendSmart(isPowerOn ? 1 : 0, "RoutineCheck", bat, currentVolt);
+            lastKeepAlive = millis();
+        }
+    }
+    
+    delay(100);
+}
+// ================= ФУНКЦИИ =================
+
+// 1. УМНАЯ ОТПРАВКА (GAS + GSM + DYNAMIC INTERVAL)
+void sendSmart(int val, String deviceStatus, int batLevel, float voltage) {
+    bool sent = false;
+
+    // A. Wi-Fi (Google Script)
+    if (ENABLE_WIFI) {
+        if (WiFi.status() != WL_CONNECTED) {
+            WiFi.reconnect();
+            for(int i=0; i<30; i++) { if(WiFi.status()==WL_CONNECTED) break; delay(100); esp_task_wdt_reset(); }
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            HTTPClient http;
+            String url = "https://script.google.com/macros/s/" + GAS_SCRIPT_ID + "/exec";
+            url += "?val=" + String(val);
+            url += "&device=" + deviceStatus;
+            url += "&bat=" + String(batLevel);
+            url += "&volt=" + String(voltage, 2);
+
+            http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+            http.begin(url); 
+            
+            int httpCode = http.GET();
+            if (httpCode == 200) {
+                // Читаем новый интервал
+                String payload = http.getString();
+                SerialMon.print("GAS Success! Next interval: "); SerialMon.println(payload);
+                int newSec = payload.toInt();
+                if (newSec >= 10 && newSec <= 3600) {
+                    sendInterval = newSec * 1000;
+                }
+                sent = true;
+            } else {
+                SerialMon.print("GAS Error: "); SerialMon.println(httpCode);
+            }
+            http.end();
+        }
+    }
+
+    // B. GSM (PushingBox) - Только если Wi-Fi упал или нужна надежность
+    if (!sent && ENABLE_GSM) {
+        SerialMon.println("[GSM] Switching to Backup...");
+        if (!modem.isGprsConnected()) {
+            if (!modem.gprsConnect(apn, user, pass)) {
+                modem.restart();
+                return;
+            }
+        }
+        String path = "/pushingbox?devid=" + String(DEVID) + 
+                      "&val=" + String(val) + 
+                      "&device=" + deviceStatus + 
+                      "&bat=" + String(batLevel) + 
+                      "&volt=" + String(voltage, 2);
+
+        httpGsm.stop();
+        httpGsm.get(path);
+        SerialMon.println("[GSM] Sent.");
+    }
+}
+
+// 2. БАТАРЕЯ (Твои коэффициенты 2.12 и 2.34)
+int getBatteryPercentage(bool charging, float &outVoltage) {
+    long sum = 0;
+    for (int i = 0; i < 50; i++) { sum += analogRead(BAT_PIN); delay(2); }
+    float average = sum / 50.0;
+    
+    if (charging) {
+        // Свет есть (Мультиметр совпадал)
+        outVoltage = (average / 4095.0) * 3.3 * 2.12;
+    } else {
+        // Света нет (Компенсация просадки от GSM)
+        outVoltage = (average / 4095.0) * 3.3 * 2.34;
+    }
+
+    int percentage = 0;
+    float v = outVoltage;
+    if (v >= 4.15) percentage = 100;
+    else if (v >= 4.05) percentage = 95;
+    else if (v >= 3.95) percentage = 85;
+    else if (v >= 3.85) percentage = 75;
+    else if (v >= 3.75) percentage = 60;
+    else if (v >= 3.65) percentage = 40;
+    else if (v >= 3.50) percentage = 15;
+    else percentage = 0;
+
+    if (charging && percentage < 100 && v > 3.9) {
+        percentage += 2; 
+        if (percentage > 100) percentage = 100;
+    }
+    
+    SerialMon.print("Bat: "); SerialMon.print(outVoltage); SerialMon.print("V | "); SerialMon.print(percentage); SerialMon.println("%");
+    return percentage;
+}
+
+// 3. ПОЛУЧЕНИЕ ВРЕМЕНИ
+String getCurrentTime() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) return "TimeError";
+    char timeStringBuff[50];
+    strftime(timeStringBuff, sizeof(timeStringBuff), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    return String(timeStringBuff);
+}
