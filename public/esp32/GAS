@@ -1,36 +1,29 @@
 function doGet(e) {
-  // 1. Получаем данные от ESP32
+  // 1. Получаем данные
   var value = e.parameter.val || "0";
   var device = e.parameter.device || "Unknown";
-  var battery = e.parameter.bat || "0"; 
-  
-  // НОВОЕ: Получаем вольтаж. Если нет, шлем 0.0
+  var batLevel = e.parameter.bat || "0"; 
   var voltage = e.parameter.volt || "0.0"; 
   
-  // 2. Ваши настройки Firestore
+  // 2. Настройки
   var FIREBASE_PROJECT_ID = "meter-form"; 
   var FIREBASE_API_KEY    = "AIzaSyAsr-JbArcAu-7_csBxM6VDsC7hyPz7qB0";
   var COLLECTION_NAME     = "esp32_data"; 
   
-  // 3. Формируем URL
-  var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + 
+  // 3. Запись данных
+  var urlWrite = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + 
             "/databases/(default)/documents/" + COLLECTION_NAME + "?key=" + FIREBASE_API_KEY;
 
-  // 4. Формируем JSON-пакет
   var payload = {
     "fields": {
       "value": { "integerValue": value },
       "device": { "stringValue": device },
-      "battery": { "integerValue": battery }, 
-      
-      // НОВОЕ ПОЛЕ: Сохраняем вольтаж как дробное число (doubleValue)
+      "battery": { "integerValue": batLevel }, 
       "voltage": { "doubleValue": voltage }, 
-      
       "timestamp": { "timestampValue": new Date().toISOString() }
     }
   };
 
-  // 5. Настройки запроса
   var options = {
     "method": "post",
     "contentType": "application/json",
@@ -38,21 +31,18 @@ function doGet(e) {
     "muteHttpExceptions": true 
   };
 
-  // 6. Отправляем запрос в Firestore (ЗАПИСЬ)
   try {
-    UrlFetchApp.fetch(url, options);
-    // Ошибки записи игнорируем, чтобы код прошел дальше к чтению настроек
-  } catch (error) {
-    // Log error if needed
-  }
+    UrlFetchApp.fetch(urlWrite, options);
+  } catch (error) {}
 
-  // --- ЧАСТЬ 2: ЧТЕНИЕ НАСТРОЕК (ОБНОВЛЕНО: ЧИТАЕМ ДВА ПАРАМЕТРА) ---
-  // Читаем из коллекции 'esp32_settings', документ 'config'
+  // --- ЧТЕНИЕ НАСТРОЕК (ТЕПЕРЬ 4 ПАРАМЕТРА) ---
   var urlRead = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + 
             "/databases/(default)/documents/esp32_settings/config?key=" + FIREBASE_API_KEY;
 
-  var nextInterval = 300; // Значение по умолчанию для батареи (300 сек)
-  var pzemInterval = 60;  // Значение по умолчанию для PZEM (60 сек)
+  var nextInterval = 300; 
+  var pzemInterval = 60;  
+  var wifiOn = 1; // По умолчанию ВКЛ
+  var gsmOn = 1;  // По умолчанию ВКЛ
 
   try {
     var responseRead = UrlFetchApp.fetch(urlRead, { "method": "get", "muteHttpExceptions": true });
@@ -62,21 +52,19 @@ function doGet(e) {
        
        if (json.fields) {
          // 1. Интервал батареи
-         if (json.fields.update_interval) {
-           nextInterval = parseInt(json.fields.update_interval.integerValue);
-         }
-         // 2. Интервал PZEM (НОВОЕ)
-         if (json.fields.pzem_interval) {
-           pzemInterval = parseInt(json.fields.pzem_interval.integerValue);
-         }
+         if (json.fields.update_interval) nextInterval = parseInt(json.fields.update_interval.integerValue);
+         // 2. Интервал PZEM
+         if (json.fields.pzem_interval) pzemInterval = parseInt(json.fields.pzem_interval.integerValue);
+         // 3. Wi-Fi Enabled (НОВОЕ)
+         if (json.fields.wifi_enabled) wifiOn = parseInt(json.fields.wifi_enabled.integerValue);
+         // 4. GSM Enabled (НОВОЕ)
+         if (json.fields.gsm_enabled) gsmOn = parseInt(json.fields.gsm_enabled.integerValue);
        }
     }
-  } catch (e) {
-    // Если ошибка, останутся значения по умолчанию
-  }
+  } catch (e) {}
 
-  // Возвращаем ESP32 строку вида "300,60"
-  return ContentService.createTextOutput(nextInterval + "," + pzemInterval);
+  // Возвращаем строку вида "300,60,1,1"
+  return ContentService.createTextOutput(nextInterval + "," + pzemInterval + "," + wifiOn + "," + gsmOn);
 }
 
 function forceAuth() {
