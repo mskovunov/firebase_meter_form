@@ -46,12 +46,13 @@ function doGet(e) {
     // Log error if needed
   }
 
-  // --- ЧАСТЬ 2: ЧТЕНИЕ НАСТРОЕК (ДОБАВЛЕНО) ---
+  // --- ЧАСТЬ 2: ЧТЕНИЕ НАСТРОЕК (ОБНОВЛЕНО: ЧИТАЕМ ДВА ПАРАМЕТРА) ---
   // Читаем из коллекции 'esp32_settings', документ 'config'
   var urlRead = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + 
             "/databases/(default)/documents/esp32_settings/config?key=" + FIREBASE_API_KEY;
 
-  var nextInterval = 300; // Значение по умолчанию (300 сек = 5 мин), если база недоступна
+  var nextInterval = 300; // Значение по умолчанию для батареи (300 сек)
+  var pzemInterval = 60;  // Значение по умолчанию для PZEM (60 сек)
 
   try {
     var responseRead = UrlFetchApp.fetch(urlRead, { "method": "get", "muteHttpExceptions": true });
@@ -59,17 +60,23 @@ function doGet(e) {
     if (responseRead.getResponseCode() == 200) {
        var json = JSON.parse(responseRead.getContentText());
        
-       // Путь к полю: fields -> update_interval -> integerValue
-       if (json.fields && json.fields.update_interval) {
-         nextInterval = parseInt(json.fields.update_interval.integerValue);
+       if (json.fields) {
+         // 1. Интервал батареи
+         if (json.fields.update_interval) {
+           nextInterval = parseInt(json.fields.update_interval.integerValue);
+         }
+         // 2. Интервал PZEM (НОВОЕ)
+         if (json.fields.pzem_interval) {
+           pzemInterval = parseInt(json.fields.pzem_interval.integerValue);
+         }
        }
     }
   } catch (e) {
-    // Если документа нет или ошибка сети, останется 300
+    // Если ошибка, останутся значения по умолчанию
   }
 
-  // Возвращаем ESP32 чистое число секунд для таймера
-  return ContentService.createTextOutput(nextInterval.toString());
+  // Возвращаем ESP32 строку вида "300,60"
+  return ContentService.createTextOutput(nextInterval + "," + pzemInterval);
 }
 
 function forceAuth() {
