@@ -102,7 +102,7 @@ async function loadHistoryData() {
 }
 
 function startMainListener() {
-    const q = query(collection(db, "esp32_data"), orderBy("timestamp", "desc"), limit(288));
+    const q = query(collection(db, "esp32_data"), orderBy("timestamp", "desc"), limit(1200));
     onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
             currentDocs = snapshot.docs.map(doc => doc.data());
