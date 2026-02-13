@@ -2,7 +2,7 @@
 import { db } from './config.js';
 import * as UI from './ui.js';
 import * as Charts from './charts.js';
-import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
 let currentDocs = [];
@@ -242,3 +242,34 @@ async function saveSettingsToDB() {
         btn.innerHTML = originalBtnText;
     }
 }
+
+// === ВРЕМЕННАЯ ФУНКЦИЯ ДЛЯ ОЧИСТКИ БАЗЫ ОТ НУЛЕЙ ===
+window.cleanZeroEnergy = async () => {
+    console.log("⏳ Шукаємо глючні записи (energy < 0.1)...");
+
+    try {
+        // Ищем все записи, где энергия меньше 0.1 (чтобы зацепить и 0, и 0.001, если были такие глюки)
+        // Если твоя коллекция называется не meter_readings, измени название ниже!
+        const q = query(collection(db, "meter_readings"), where("energy", "<", 0.1));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            console.log("✅ Таких записів не знайдено. База чиста!");
+            return;
+        }
+
+        console.log(`🗑️ Знайдено ${snapshot.size} записів. Починаємо видалення...`);
+
+        let count = 0;
+        for (const docSnap of snapshot.docs) {
+            await deleteDoc(docSnap.ref);
+            count++;
+            // Выводим прогресс каждые 10 записей, чтобы не спамить в консоль
+            if (count % 10 === 0) console.log(`Видалено ${count} з ${snapshot.size}...`);
+        }
+
+        console.log("🚀 Очищення успішно завершено! Онови сторінку (F5).");
+    } catch (error) {
+        console.error("❌ Помилка під час видалення:", error);
+    }
+};
