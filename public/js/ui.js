@@ -16,7 +16,7 @@ export const translations = {
         btnSave: "Сохранить", stInfo: "Изменения вступят в силу после следующего сеанса связи.",
         msgSaved: "Сохранено успешно!", msgError: "Ошибка сохранения",
         monLogsTitle: "Системные логи", 
-        lblReason: "Причина:" // Новый ключ для списка логов
+        lblReason: "Причина:"
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
@@ -33,7 +33,7 @@ export const translations = {
         btnSave: "Зберегти", stInfo: "Зміни набудуть чинності після наступного сеансу зв'язку.",
         msgSaved: "Збережено успішно!", msgError: "Помилка збереження",
         monLogsTitle: "Системні логи", 
-        lblReason: "Причина:" // Новый ключ для списка логов
+        lblReason: "Причина:"
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
@@ -50,7 +50,7 @@ export const translations = {
         btnSave: "Save", stInfo: "Changes will take effect after the next device connection.",
         msgSaved: "Saved successfully!", msgError: "Error saving",
         monLogsTitle: "System Logs", 
-        lblReason: "Reason:" // Новый ключ для списка логов
+        lblReason: "Reason:"
     }
 };
 
@@ -58,7 +58,10 @@ export function initUI(config) {
     // Setup Navigation
     const navs = ['home', 'monitoring', 'graphs', 'settings'];
     navs.forEach(view => {
-        document.getElementById(`nav-${view}`).addEventListener('click', () => config.onViewChange(view));
+        const navEl = document.getElementById(`nav-${view}`);
+        if(navEl) {
+            navEl.addEventListener('click', () => config.onViewChange(view));
+        }
     });
     document.getElementById('header-title-block').addEventListener('click', () => config.onViewChange('home'));
 
@@ -276,7 +279,6 @@ export function updateMonitoringCards(latest, todayStartEnergy) {
     }
 }
 
-// === НОВЫЙ ДИЗАЙН ЛОГОВ (LIST VIEW) ===
 export function renderSystemLogs(docs) {
     const listContainer = document.getElementById('system-logs-list');
     if (!listContainer) return;
@@ -290,42 +292,45 @@ export function renderSystemLogs(docs) {
     let html = '';
     
     docs.forEach(doc => {
-        // 1. Час
-        let timeStr = "--:--";
+        // Форматуємо час
+        let timeStr = "--:--:--";
         if (doc.timestamp && doc.timestamp.toDate) {
-            timeStr = doc.timestamp.toDate().toLocaleString([], {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            timeStr = doc.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         } else if (doc.created_at) {
-            timeStr = doc.created_at; 
+            timeStr = doc.created_at.includes(' ') ? doc.created_at.split(' ')[1] : doc.created_at; 
         }
 
-        // 2. Тип і стилі бейджа
+        // Колір лівої смужки та тексту
         const level = (doc.level || doc.type || "INFO").toUpperCase();
-        let badgeClass = "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"; 
-        
-        if (level === "ERROR") badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
-        else if (level === "WARN" || level === "WARNING") badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300";
-        else if (level === "INFO") badgeClass = "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300";
+        let borderClass = "border-blue-400"; 
+        let textLevelClass = "text-blue-600 dark:text-blue-400";
 
-        // 3. Дані
-        const reason = doc.reason ? doc.reason.trim() : null;
+        if (level === "ERROR") {
+            borderClass = "border-red-500";
+            textLevelClass = "text-red-600 dark:text-red-400";
+        } else if (level === "WARN" || level === "WARNING") {
+            borderClass = "border-yellow-500";
+            textLevelClass = "text-yellow-600 dark:text-yellow-400";
+        }
+
+        // Збираємо повідомлення
         const msg = doc.message || doc.event || doc.text || JSON.stringify(doc);
+        const reason = doc.reason ? doc.reason.trim() : "";
+        const subText = reason ? `<span class="font-semibold text-gray-500 dark:text-gray-400">${t.lblReason}</span> ${reason}` : "Системне повідомлення";
 
-        // Формуємо HTML для одного логу
         html += `
-        <li class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition text-sm">
-            <div class="flex justify-between items-center mb-1.5">
-                <span class="text-[11px] font-mono text-gray-400 dark:text-gray-500 opacity-80">
-                    ${timeStr}
-                </span>
-                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${badgeClass}">
-                    ${level}
-                </span>
+        <li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700">
+            <div class="flex-grow pr-2">
+                <div class="font-bold ${textLevelClass}">
+                    ${level} <span class="font-medium text-gray-700 dark:text-gray-200">| ${msg}</span>
+                </div>
+                <div class="text-xs text-gray-400 mt-0.5">
+                    ${subText}
+                </div>
             </div>
-
-            <div class="text-gray-700 dark:text-gray-200 leading-snug break-words">
-                ${reason ? `<div class="mb-0.5"><span class="font-semibold text-gray-500 dark:text-gray-400 text-xs">${t.lblReason}</span> <span class="text-gray-800 dark:text-gray-100">${reason}</span></div>` : ''}
-                <div>${msg}</div>
-            </div>
+            <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded whitespace-nowrap">
+                ${timeStr}
+            </span>
         </li>`;
     });
     
