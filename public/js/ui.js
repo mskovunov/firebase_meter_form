@@ -8,14 +8,15 @@ export const translations = {
         lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", 
         gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Есть свет", statOff: "Нет света", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние ~48 часов",
-        // НОВЫЕ ПЕРЕВОДЫ
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
         btnDay: "День", btnWeek: "Неделя", btnMonth: "Месяц",
         cVoltage: "Напряжение (V)", cPower: "Мощность (W)", cDaily: "За сегодня (kWh)",
         cEnergyDay: "Потребление по дням (kWh)", cEnergyWeek: "Потребление по неделям (kWh)", cEnergyMonth: "Потребление по месяцам (kWh)",
         stTitle: "Интервал обновления", stDesc: "Как часто устройство отправляет данные (сек).", 
         btnSave: "Сохранить", stInfo: "Изменения вступят в силу после следующего сеанса связи.",
-        msgSaved: "Сохранено успешно!", msgError: "Ошибка сохранения"
+        msgSaved: "Сохранено успешно!", msgError: "Ошибка сохранения",
+        monLogsTitle: "Системные логи", 
+        lblReason: "Причина:" // Новый ключ для списка логов
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
@@ -24,14 +25,15 @@ export const translations = {
         lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", 
         gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Є світло", statOff: "Немає світла", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні ~48 годин",
-        // НОВЫЕ ПЕРЕВОДЫ
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
         btnDay: "День", btnWeek: "Тиждень", btnMonth: "Місяць",
         cVoltage: "Напруга (V)", cPower: "Потужність (W)", cDaily: "За сьогодні (kWh)",
         cEnergyDay: "Споживання по днях (kWh)", cEnergyWeek: "Споживання по тижнях (kWh)", cEnergyMonth: "Споживання по місяцях (kWh)",
         stTitle: "Інтервал оновлення", stDesc: "Як часто пристрій надсилає дані (сек).", 
         btnSave: "Зберегти", stInfo: "Зміни набудуть чинності після наступного сеансу зв'язку.",
-        msgSaved: "Збережено успішно!", msgError: "Помилка збереження"
+        msgSaved: "Збережено успішно!", msgError: "Помилка збереження",
+        monLogsTitle: "Системні логи", 
+        lblReason: "Причина:" // Новый ключ для списка логов
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
@@ -40,14 +42,15 @@ export const translations = {
         lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", 
         gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Power ON", statOff: "Power OFF", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last ~48 hours",
-        // НОВЫЕ ПЕРЕВОДЫ
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
         btnDay: "Day", btnWeek: "Week", btnMonth: "Month",
         cVoltage: "Voltage (V)", cPower: "Power (W)", cDaily: "Today (kWh)",
         cEnergyDay: "Consumption by day (kWh)", cEnergyWeek: "Consumption by week (kWh)", cEnergyMonth: "Consumption by month (kWh)",
         stTitle: "Update Interval", stDesc: "How often the device sends data (sec).", 
         btnSave: "Save", stInfo: "Changes will take effect after the next device connection.",
-        msgSaved: "Saved successfully!", msgError: "Error saving"
+        msgSaved: "Saved successfully!", msgError: "Error saving",
+        monLogsTitle: "System Logs", 
+        lblReason: "Reason:" // Новый ключ для списка логов
     }
 };
 
@@ -105,16 +108,13 @@ export function initUI(config) {
 }
 
 export function showView(viewName) {
-    // 1. Список усіх вкладок (Додав 'settings')
     const views = ['home', 'monitoring', 'graphs', 'settings'];
 
-    // 2. Перемикання самих екранів (Views)
     views.forEach(v => {
         const el = document.getElementById(`view-${v}`);
         if (el) {
             if (v === viewName) {
                 el.classList.remove('hidden');
-                // Невелика затримка для анімації opacity
                 setTimeout(() => el.classList.remove('opacity-0'), 10);
                 el.classList.add('flex');
             } else {
@@ -124,28 +124,22 @@ export function showView(viewName) {
         }
     });
 
-    // 3. Перемикання стилів меню (Active/Inactive)
-    // Класи для АКТИВНОЇ кнопки
     const activeClasses = ['bg-blue-50', 'dark:bg-blue-900/20', 'text-blue-600', 'dark:text-blue-400'];
-    // Класи для НЕАКТИВНОЇ кнопки
     const inactiveClasses = ['text-gray-700', 'dark:text-gray-200', 'hover:bg-gray-100', 'dark:hover:bg-gray-800'];
 
     views.forEach(v => {
         const btn = document.getElementById(`nav-${v}`);
         if (btn) {
             if (v === viewName) {
-                // Робимо кнопку активною
                 btn.classList.add(...activeClasses);
                 btn.classList.remove(...inactiveClasses);
             } else {
-                // Робимо кнопку неактивною (скидаємо синій колір)
                 btn.classList.remove(...activeClasses);
                 btn.classList.add(...inactiveClasses);
             }
         }
     });
 
-    // 4. Закриваємо мобільне меню після кліку
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('menu-overlay');
     if (sidebar && !sidebar.classList.contains('-translate-x-full')) {
@@ -164,13 +158,13 @@ export function applyLanguage(lang) {
         't-graph-title': t.gTitle, 't-stats-title': t.gStatsTitle, 't-data-info': t.dataInfo,
         'm-home': t.mHome, 'm-monitoring': t.mMonitoring, 'm-graphs': t.mGraphs, 
         'm-settings': t.mSettings, 'm-about': t.mAbout,
-        // НОВЫЕ ID
         't-mon-voltage': t.monVoltage, 't-mon-power': t.monPower, 't-mon-energy': t.monEnergy, 't-mon-daily': t.monDaily,
         'btn-range-day': t.btnDay, 'btn-range-week': t.btnWeek, 'btn-range-month': t.btnMonth,
         't-set-interval-title': t.stTitle,
         't-set-desc': t.stDesc,
         't-btn-save': t.btnSave,
-        't-set-info': t.stInfo
+        't-set-info': t.stInfo,
+        't-mon-logs-title': t.monLogsTitle
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
@@ -238,24 +232,20 @@ export function renderHome(docs, currentLang) {
     document.getElementById("time-last-off").innerText = (lostDoc && lostDoc.timestamp) ? lostDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
 
     // History List
-let listHTML = "";
+    let listHTML = "";
     docs.slice(0, 10).forEach((data) => {
         const evt = data.device || "Event";
         
-        // Форматирование времени
         let timeStr = "--:--:--"; 
         if (data.timestamp && data.timestamp.toDate) {
             timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         }
         
-        // Цвет бордюра в зависимости от события
         let borderClass = 'border-gray-300';
         if (evt === "PowerRestored") borderClass = 'border-green-500'; 
         else if (evt === "PowerLost") borderClass = 'border-red-500'; 
         else if (evt === "RoutineCheck") borderClass = 'border-blue-300';
         
-        // === НОВАЯ ЛОГИКА ДЛЯ VOLTAGE ===
-        // Если параметр voltage есть в базе, формируем строку " | 220V", иначе пустую строку
         const volStr = data.voltage !== undefined ? ` | <span class="text-gray-600 dark:text-gray-300 font-bold">${data.voltage}V</span>` : '';
 
         listHTML += `
@@ -284,4 +274,60 @@ export function updateMonitoringCards(latest, todayStartEnergy) {
         if(daily < 0) daily = 0;
         document.getElementById('mon-daily').innerText = daily;
     }
+}
+
+// === НОВЫЙ ДИЗАЙН ЛОГОВ (LIST VIEW) ===
+export function renderSystemLogs(docs) {
+    const listContainer = document.getElementById('system-logs-list');
+    if (!listContainer) return;
+
+    if (!docs || docs.length === 0) {
+        listContainer.innerHTML = `<li class="p-4 text-center text-sm text-gray-400">Немає записів</li>`;
+        return;
+    }
+
+    const t = translations[localStorage.getItem('lang') || 'uk']; 
+    let html = '';
+    
+    docs.forEach(doc => {
+        // 1. Час
+        let timeStr = "--:--";
+        if (doc.timestamp && doc.timestamp.toDate) {
+            timeStr = doc.timestamp.toDate().toLocaleString([], {day: '2-digit', month: '2-digit', hour: '2-digit', minute:'2-digit', second:'2-digit'});
+        } else if (doc.created_at) {
+            timeStr = doc.created_at; 
+        }
+
+        // 2. Тип і стилі бейджа
+        const level = (doc.level || doc.type || "INFO").toUpperCase();
+        let badgeClass = "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"; 
+        
+        if (level === "ERROR") badgeClass = "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
+        else if (level === "WARN" || level === "WARNING") badgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300";
+        else if (level === "INFO") badgeClass = "bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300";
+
+        // 3. Дані
+        const reason = doc.reason ? doc.reason.trim() : null;
+        const msg = doc.message || doc.event || doc.text || JSON.stringify(doc);
+
+        // Формуємо HTML для одного логу
+        html += `
+        <li class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition text-sm">
+            <div class="flex justify-between items-center mb-1.5">
+                <span class="text-[11px] font-mono text-gray-400 dark:text-gray-500 opacity-80">
+                    ${timeStr}
+                </span>
+                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full ${badgeClass}">
+                    ${level}
+                </span>
+            </div>
+
+            <div class="text-gray-700 dark:text-gray-200 leading-snug break-words">
+                ${reason ? `<div class="mb-0.5"><span class="font-semibold text-gray-500 dark:text-gray-400 text-xs">${t.lblReason}</span> <span class="text-gray-800 dark:text-gray-100">${reason}</span></div>` : ''}
+                <div>${msg}</div>
+            </div>
+        </li>`;
+    });
+    
+    listContainer.innerHTML = html;
 }

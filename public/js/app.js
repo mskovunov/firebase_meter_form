@@ -13,6 +13,7 @@ let monDataCache = [];
 let historyCache = [];
 let isHistoryLoaded = false;
 let activeMonMode = 'power'; // Запоминаем текущий режим (по умолчанию Power)
+let logsUnsubscribe = null; // НОВА ЗМІННА  для відписки від логів
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -164,6 +165,19 @@ function startMonitoringListener() {
         }
 
     }, (err) => console.error("Mon Error", err));
+
+    // === НОВИЙ БЛОК: СЛУХАЧ ЛОГІВ ===
+    // УВАГА: Заміни "system_logs" на точну назву колекції зі свого скріншота!
+    // Якщо сортувати треба по created_at, заміни "timestamp" на "created_at"
+    const qLogs = query(collection(db, "system_logs"), orderBy("created_at", "desc"), limit(10));
+    
+    logsUnsubscribe = onSnapshot(qLogs, (snapshot) => {
+        const logsDocs = snapshot.docs.map(doc => doc.data());
+        UI.renderSystemLogs(logsDocs);
+    }, (err) => {
+        console.error("Помилка завантаження логів:", err);
+    });
+    
 }
 
 // === SETTINGS LOGIC (НОВІ ФУНКЦІЇ) ===
