@@ -267,7 +267,7 @@ void loop()
             SerialMon.printf(">>> FIREBASE ERROR: %s\n", fbdo.errorReason().c_str());
         }
         
-        lastKeepAlive = millis() + 5000; 
+        // lastKeepAlive = millis() + 5000; 
         esp_task_wdt_reset();
     }
 
