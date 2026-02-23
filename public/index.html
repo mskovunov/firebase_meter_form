@@ -114,7 +114,7 @@
         <div
           class="p-4 border-t border-gray-200 dark:border-gray-700 text-center"
         >
-          <p class="text-xs text-gray-400">Ver 2.2302.2159</p>
+          <p class="text-xs text-gray-400">Ver 2.2302.2259</p>
         </div>
       </aside>
 
@@ -553,6 +553,82 @@
                   ></i>
                   <p
                     id="t-set-info"
+                    class="text-xs text-yellow-800 dark:text-yellow-400"
+                  >
+                    Зміни набудуть чинності після наступного сеансу зв'язку.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
+              onclick="
+                window.toggleGraph(
+                  'pzem-settings-content',
+                  'pzem-settings-icon',
+                )
+              "
+              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
+            >
+              <h2
+                class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2"
+              >
+                <i class="fas fa-plug text-purple-500"></i>
+                <span id="t-set-pzem-title">Інтервал лічильника</span>
+              </h2>
+              <i
+                id="pzem-settings-icon"
+                class="fas fa-chevron-down text-gray-400 rotate-icon collapsed"
+              ></i>
+            </button>
+            <div id="pzem-settings-content" class="accordion-content collapsed">
+              <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <p
+                  id="t-set-pzem-desc"
+                  class="text-sm text-gray-500 dark:text-gray-400 mb-4"
+                >
+                  Як часто надсилаються дані напруги та потужності (в секундах).
+                </p>
+                <div class="flex flex-col gap-4">
+                  <div class="relative">
+                    <input
+                      type="number"
+                      id="input-pzem-interval"
+                      min="5"
+                      max="3600"
+                      placeholder="60"
+                      class="w-full p-3 pl-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition font-mono text-lg font-semibold"
+                    />
+                    <span
+                      class="absolute right-4 top-3.5 text-gray-400 text-sm font-bold"
+                      >sec</span
+                    >
+                  </div>
+                  <button
+                    onclick="window.savePzemSettings()"
+                    id="btn-save-pzem"
+                    class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/30 transition transform active:scale-95 flex justify-center items-center gap-2"
+                  >
+                    <i class="fas fa-save"></i>
+                    <span id="t-btn-save-pzem">Зберегти</span>
+                  </button>
+                  <p
+                    id="pzem-settings-status"
+                    class="text-center text-sm font-medium h-5 transition-opacity opacity-0 text-green-500"
+                  ></p>
+                </div>
+                <div
+                  class="mt-2 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl p-3 flex gap-3"
+                >
+                  <i
+                    class="fas fa-info-circle text-yellow-600 dark:text-yellow-500 mt-0.5 text-sm"
+                  ></i>
+                  <p
+                    id="t-set-pzem-info"
                     class="text-xs text-yellow-800 dark:text-yellow-400"
                   >
                     Зміни набудуть чинності після наступного сеансу зв'язку.

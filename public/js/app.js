@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js';
-import * as Charts from './charts.js';
+import * as UI from './ui.js?v=3';
+import * as Charts from './charts.js?v=3';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -46,9 +46,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.changeEnergyRange = (range) => {
         Charts.changeEnergyRange(range);
     };
-    // 2. Експортуємо функцію збереження у вікно
+
+    // 2. Експортуємо функції збереження у вікно
     window.saveSettings = () => {
         saveSettingsToDB();
+    };
+    // ДОДАНО: Експорт функції збереження PZEM
+    window.savePzemSettings = () => {
+        savePzemSettingsToDB();
     };
 });
 
@@ -65,7 +70,7 @@ function handleViewChange(viewName) {
     }
 
     // 3. ЯКЩО ВІДКРИЛИ НАЛАШТУВАННЯ - ВАНТАЖИМО ДАНІ
-    if (viewName === 'settings') { // Перевір, щоб в HTML ID кнопки був nav-settings, а view-settings
+    if (viewName === 'settings') { 
         loadSettingsFromDB();
     }
 }
@@ -167,8 +172,6 @@ function startMonitoringListener() {
     }, (err) => console.error("Mon Error", err));
 
     // === НОВИЙ БЛОК: СЛУХАЧ ЛОГІВ ===
-    // УВАГА: Заміни "system_logs" на точну назву колекції зі свого скріншота!
-    // Якщо сортувати треба по created_at, заміни "timestamp" на "created_at"
     const qLogs = query(collection(db, "system_logs"), orderBy("created_at", "desc"), limit(10));
     
     logsUnsubscribe = onSnapshot(qLogs, (snapshot) => {
@@ -180,17 +183,23 @@ function startMonitoringListener() {
     
 }
 
-// === SETTINGS LOGIC (НОВІ ФУНКЦІЇ) ===
+// === SETTINGS LOGIC ===
 
-// Назви в базі даних (ЗМІНИ ЯКЩО У ТЕБЕ ІНШІ)
+// Назви в базі даних 
 const SETTINGS_COLLECTION = "esp32_settings";
 const CONFIG_DOC = "config";
 
 async function loadSettingsFromDB() {
-    const input = document.getElementById('input-interval');
-    // Блокуємо інпут поки вантажиться
-    input.disabled = true;
-    input.classList.add('opacity-50');
+    const inputMain = document.getElementById('input-interval');
+    const inputPzem = document.getElementById('input-pzem-interval'); // ДОДАНО
+    
+    // Блокуємо інпути поки вантажиться
+    inputMain.disabled = true;
+    inputMain.classList.add('opacity-50');
+    if (inputPzem) {
+        inputPzem.disabled = true;
+        inputPzem.classList.add('opacity-50');
+    }
 
     try {
         const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
@@ -198,9 +207,13 @@ async function loadSettingsFromDB() {
 
         if (docSnap.exists()) {
             const data = docSnap.data();
-            // Припускаємо, що поле називається 'update_interval'
+            
             if (data.update_interval) {
-                input.value = data.update_interval;
+                inputMain.value = data.update_interval;
+            }
+            // ДОДАНО: Завантажуємо інтервал PZEM
+            if (inputPzem && data.pzem_interval) {
+                inputPzem.value = data.pzem_interval;
             }
         } else {
             console.log("No settings doc found!");
@@ -208,8 +221,12 @@ async function loadSettingsFromDB() {
     } catch (e) {
         console.error("Error loading settings:", e);
     } finally {
-        input.disabled = false;
-        input.classList.remove('opacity-50');
+        inputMain.disabled = false;
+        inputMain.classList.remove('opacity-50');
+        if (inputPzem) {
+            inputPzem.disabled = false;
+            inputPzem.classList.remove('opacity-50');
+        }
     }
 }
 
@@ -257,13 +274,55 @@ async function saveSettingsToDB() {
     }
 }
 
+// ДОДАНО: Збереження налаштувань PZEM
+async function savePzemSettingsToDB() {
+    const input = document.getElementById('input-pzem-interval');
+    const status = document.getElementById('pzem-settings-status');
+    const newVal = parseInt(input.value);
+
+    if (!newVal || newVal < 5) {
+        alert("Value must be at least 5 seconds");
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-pzem');
+    const originalBtnText = btn.innerHTML;
+    
+    // UI Loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
+        
+        await setDoc(docRef, { 
+            pzem_interval: newVal, // Зберігаємо саме pzem_interval
+            updated_at: new Date() 
+        }, { merge: true });
+
+        // Show success
+        status.innerText = UI.translations[currentLang].msgSaved || "Saved!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-green-500";
+        
+        setTimeout(() => {
+            status.classList.add('opacity-0');
+        }, 3000);
+
+    } catch (e) {
+        console.error("Error saving PZEM settings:", e);
+        status.innerText = UI.translations[currentLang].msgError || "Error!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-red-500";
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
+    }
+}
+
 // === ВРЕМЕННАЯ ФУНКЦИЯ ДЛЯ ОЧИСТКИ БАЗЫ ОТ НУЛЕЙ ===
 window.cleanZeroEnergy = async () => {
     console.log("⏳ Шукаємо глючні записи (energy < 0.1)...");
 
     try {
-        // Ищем все записи, где энергия меньше 0.1 (чтобы зацепить и 0, и 0.001, если были такие глюки)
-        // Если твоя коллекция называется не meter_readings, измени название ниже!
         const q = query(collection(db, "meter_readings"), where("energy", "<", 0.1));
         const snapshot = await getDocs(q);
 
@@ -278,7 +337,6 @@ window.cleanZeroEnergy = async () => {
         for (const docSnap of snapshot.docs) {
             await deleteDoc(docSnap.ref);
             count++;
-            // Выводим прогресс каждые 10 записей, чтобы не спамить в консоль
             if (count % 10 === 0) console.log(`Видалено ${count} з ${snapshot.size}...`);
         }
 

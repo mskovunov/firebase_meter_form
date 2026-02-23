@@ -16,7 +16,9 @@ export const translations = {
         btnSave: "Сохранить", stInfo: "Изменения вступят в силу после следующего сеанса связи.",
         msgSaved: "Сохранено успешно!", msgError: "Ошибка сохранения",
         monLogsTitle: "Системные логи", 
-        lblReason: "Причина:"
+        lblReason: "Причина:",
+        stPzemTitle: "Интервал счетчика", stPzemDesc: "Как часто отправляются данные напряжения и мощности (сек).", 
+        btnSavePzem: "Сохранить", stPzemInfo: "Изменения вступят в силу после следующего сеанса связи."
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
@@ -33,7 +35,9 @@ export const translations = {
         btnSave: "Зберегти", stInfo: "Зміни набудуть чинності після наступного сеансу зв'язку.",
         msgSaved: "Збережено успішно!", msgError: "Помилка збереження",
         monLogsTitle: "Системні логи", 
-        lblReason: "Причина:"
+        lblReason: "Причина:",
+        stPzemTitle: "Інтервал лічильника", stPzemDesc: "Як часто надсилаються дані напруги та потужності (сек).", 
+        btnSavePzem: "Зберегти", stPzemInfo: "Зміни набудуть чинності після наступного сеансу зв'язку."
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
@@ -50,7 +54,9 @@ export const translations = {
         btnSave: "Save", stInfo: "Changes will take effect after the next device connection.",
         msgSaved: "Saved successfully!", msgError: "Error saving",
         monLogsTitle: "System Logs", 
-        lblReason: "Reason:"
+        lblReason: "Reason:",
+        stPzemTitle: "Meter Interval", stPzemDesc: "How often voltage and power data is sent (sec).", 
+        btnSavePzem: "Save", stPzemInfo: "Changes will take effect after the next connection."
     }
 };
 
@@ -167,7 +173,11 @@ export function applyLanguage(lang) {
         't-set-desc': t.stDesc,
         't-btn-save': t.btnSave,
         't-set-info': t.stInfo,
-        't-mon-logs-title': t.monLogsTitle
+        't-mon-logs-title': t.monLogsTitle,
+        't-set-pzem-title': t.stPzemTitle,
+        't-set-pzem-desc': t.stPzemDesc,
+        't-btn-save-pzem': t.btnSavePzem,
+        't-set-pzem-info': t.stPzemInfo
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
