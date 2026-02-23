@@ -279,6 +279,7 @@ export function updateMonitoringCards(latest, todayStartEnergy) {
     }
 }
 
+// === НОВИЙ ДИЗАЙН ЛОГІВ (З додаванням дати) ===
 export function renderSystemLogs(docs) {
     const listContainer = document.getElementById('system-logs-list');
     if (!listContainer) return;
@@ -292,15 +293,33 @@ export function renderSystemLogs(docs) {
     let html = '';
     
     docs.forEach(doc => {
-        // Форматуємо час
+        // 1. Форматуємо ЧАС та ДАТУ окремо
         let timeStr = "--:--:--";
+        let dateStr = "";
+        
         if (doc.timestamp && doc.timestamp.toDate) {
-            timeStr = doc.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateObj = doc.timestamp.toDate();
+            timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // Формат дати: 23.02
+            dateStr = String(dateObj.getDate()).padStart(2, '0') + '.' + String(dateObj.getMonth() + 1).padStart(2, '0');
         } else if (doc.created_at) {
-            timeStr = doc.created_at.includes(' ') ? doc.created_at.split(' ')[1] : doc.created_at; 
+            // Якщо час приходить текстом "2026-02-23 14:30:00"
+            if (doc.created_at.includes(' ')) {
+                const parts = doc.created_at.split(' ');
+                timeStr = parts[1]; // "14:30:00"
+                
+                const dateParts = parts[0].split('-'); // ["2026", "02", "23"]
+                if (dateParts.length === 3) {
+                    dateStr = `${dateParts[2]}.${dateParts[1]}`; // "23.02"
+                } else {
+                    dateStr = parts[0];
+                }
+            } else {
+                timeStr = doc.created_at;
+            }
         }
 
-        // Колір лівої смужки та тексту
+        // 2. Колір лівої смужки та тексту
         const level = (doc.level || doc.type || "INFO").toUpperCase();
         let borderClass = "border-blue-400"; 
         let textLevelClass = "text-blue-600 dark:text-blue-400";
@@ -313,11 +332,12 @@ export function renderSystemLogs(docs) {
             textLevelClass = "text-yellow-600 dark:text-yellow-400";
         }
 
-        // Збираємо повідомлення
+        // 3. Збираємо повідомлення
         const msg = doc.message || doc.event || doc.text || JSON.stringify(doc);
         const reason = doc.reason ? doc.reason.trim() : "";
         const subText = reason ? `<span class="font-semibold text-gray-500 dark:text-gray-400">${t.lblReason}</span> ${reason}` : "Системне повідомлення";
 
+        // 4. Формуємо HTML (Дата зверху, час у сірому блоці знизу)
         html += `
         <li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700">
             <div class="flex-grow pr-2">
@@ -328,9 +348,13 @@ export function renderSystemLogs(docs) {
                     ${subText}
                 </div>
             </div>
-            <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded whitespace-nowrap">
-                ${timeStr}
-            </span>
+            
+            <div class="flex flex-col items-end flex-shrink-0">
+                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1 tracking-wider">${dateStr}</span>
+                <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded whitespace-nowrap">
+                    ${timeStr}
+                </span>
+            </div>
         </li>`;
     });
     
