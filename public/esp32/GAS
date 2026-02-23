@@ -35,7 +35,7 @@ function doGet(e) {
     UrlFetchApp.fetch(urlWrite, options);
   } catch (error) {}
 
-  // --- ЧТЕНИЕ НАСТРОЕК (ТЕПЕРЬ 4 ПАРАМЕТРА) ---
+  // --- ЧТЕНИЕ НАСТРОЕК (ИСПРАВЛЕННЫЙ БЛОК) ---
   var urlRead = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_PROJECT_ID + 
             "/databases/(default)/documents/esp32_settings/config?key=" + FIREBASE_API_KEY;
 
@@ -51,19 +51,32 @@ function doGet(e) {
        var json = JSON.parse(responseRead.getContentText());
        
        if (json.fields) {
+         // Умная функция, которая достает число независимо от формата Firebase
+         var getVal = function(field) {
+           if (!field) return null;
+           return field.integerValue || field.doubleValue || field.stringValue;
+         };
+
          // 1. Интервал батареи
-         if (json.fields.update_interval) nextInterval = parseInt(json.fields.update_interval.integerValue);
+         var ui = getVal(json.fields.update_interval);
+         if (ui) nextInterval = parseInt(ui);
+
          // 2. Интервал PZEM
-         if (json.fields.pzem_interval) pzemInterval = parseInt(json.fields.pzem_interval.integerValue);
-         // 3. Wi-Fi Enabled (НОВОЕ)
-         if (json.fields.wifi_enabled) wifiOn = parseInt(json.fields.wifi_enabled.integerValue);
-         // 4. GSM Enabled (НОВОЕ)
-         if (json.fields.gsm_enabled) gsmOn = parseInt(json.fields.gsm_enabled.integerValue);
+         var pi = getVal(json.fields.pzem_interval);
+         if (pi) pzemInterval = parseInt(pi);
+
+         // 3. Wi-Fi Enabled
+         var wo = getVal(json.fields.wifi_enabled);
+         if (wo) wifiOn = parseInt(wo);
+
+         // 4. GSM Enabled
+         var go = getVal(json.fields.gsm_enabled);
+         if (go) gsmOn = parseInt(go);
        }
     }
   } catch (e) {}
 
-  // Возвращаем строку вида "300,60,1,1"
+  // Возвращаем строку вида "600,60,1,1"
   return ContentService.createTextOutput(nextInterval + "," + pzemInterval + "," + wifiOn + "," + gsmOn);
 }
 
