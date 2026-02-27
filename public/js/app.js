@@ -98,7 +98,8 @@ async function loadHistoryData() {
         const snapshot = await getDocs(qHistory);
         
         if (!snapshot.empty) {
-            historyCache = snapshot.docs.map(doc => doc.data());
+            // ФИЛЬТРУЕМ: Оставляем только записи с адекватной энергией
+            historyCache = snapshot.docs.map(doc => doc.data()).filter(d => d.energy >= 0.1);
             isHistoryLoaded = true;
             console.log("History loaded:", historyCache.length);
         }
@@ -154,7 +155,11 @@ function startMonitoringListener() {
             return;
         }
         
-        const docs = snapshot.docs.map(doc => doc.data());
+        // ФИЛЬТРУЕМ ЖИВЫЕ ДАННЫЕ
+        let docs = snapshot.docs.map(doc => doc.data()).filter(d => d.energy >= 0.1);
+        
+        // Если после фильтрации массив оказался пустым (пришли одни нули) - ничего не делаем
+        if (docs.length === 0) return;
         
         // Оновлюємо кеш живих даних
         monDataCache = docs.reverse(); 
