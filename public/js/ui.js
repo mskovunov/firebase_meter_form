@@ -232,17 +232,17 @@ export function renderHome(docs, currentLang) {
     else if (batLevel > 20) batteryBar.className = "bg-yellow-500 h-4 rounded-full transition-all duration-1000 ease-out";
     else batteryBar.className = "bg-red-500 h-4 rounded-full transition-all duration-1000 ease-out";
 
-    // Update Times
+    // Update Times (ИСПРАВЛЕНО НА 24 ЧАСА)
     let timeString = "--:--";
-    if (latest.timestamp && latest.timestamp.toDate) timeString = latest.timestamp.toDate().toLocaleTimeString();
+    if (latest.timestamp && latest.timestamp.toDate) timeString = latest.timestamp.toDate().toLocaleTimeString([], { hour12: false });
     document.getElementById("last-update").innerText = `${t.updated}: ${timeString}`;
     document.getElementById("last-event-type").innerText = eventType;
 
     const restoreDoc = docs.find(d => d.device === "PowerRestored");
-    document.getElementById("time-last-on").innerText = (restoreDoc && restoreDoc.timestamp) ? restoreDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+    document.getElementById("time-last-on").innerText = (restoreDoc && restoreDoc.timestamp) ? restoreDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : "--:--";
 
     const lostDoc = docs.find(d => d.device === "PowerLost");
-    document.getElementById("time-last-off").innerText = (lostDoc && lostDoc.timestamp) ? lostDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+    document.getElementById("time-last-off").innerText = (lostDoc && lostDoc.timestamp) ? lostDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : "--:--";
 
     // History List
     let listHTML = "";
@@ -251,7 +251,8 @@ export function renderHome(docs, currentLang) {
         
         let timeStr = "--:--:--"; 
         if (data.timestamp && data.timestamp.toDate) {
-            timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // ИСПРАВЛЕНО НА 24 ЧАСА
+            timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
         }
         
         let borderClass = 'border-gray-300';
@@ -309,18 +310,17 @@ export function renderSystemLogs(docs) {
         
         if (doc.timestamp && doc.timestamp.toDate) {
             const dateObj = doc.timestamp.toDate();
-            timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            // Формат дати: 23.02
+            // ИСПРАВЛЕНО НА 24 ЧАСА
+            timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
             dateStr = String(dateObj.getDate()).padStart(2, '0') + '.' + String(dateObj.getMonth() + 1).padStart(2, '0');
         } else if (doc.created_at) {
-            // Якщо час приходить текстом "2026-02-23 14:30:00"
             if (doc.created_at.includes(' ')) {
                 const parts = doc.created_at.split(' ');
                 timeStr = parts[1]; // "14:30:00"
                 
-                const dateParts = parts[0].split('-'); // ["2026", "02", "23"]
+                const dateParts = parts[0].split('-'); 
                 if (dateParts.length === 3) {
-                    dateStr = `${dateParts[2]}.${dateParts[1]}`; // "23.02"
+                    dateStr = `${dateParts[2]}.${dateParts[1]}`; 
                 } else {
                     dateStr = parts[0];
                 }
@@ -329,7 +329,6 @@ export function renderSystemLogs(docs) {
             }
         }
 
-        // 2. Колір лівої смужки та тексту
         const level = (doc.level || doc.type || "INFO").toUpperCase();
         let borderClass = "border-blue-400"; 
         let textLevelClass = "text-blue-600 dark:text-blue-400";
@@ -342,12 +341,10 @@ export function renderSystemLogs(docs) {
             textLevelClass = "text-yellow-600 dark:text-yellow-400";
         }
 
-        // 3. Збираємо повідомлення
         const msg = doc.message || doc.event || doc.text || JSON.stringify(doc);
         const reason = doc.reason ? doc.reason.trim() : "";
         const subText = reason ? `<span class="font-semibold text-gray-500 dark:text-gray-400">${t.lblReason}</span> ${reason}` : "Системне повідомлення";
 
-        // 4. Формуємо HTML (Дата зверху, час у сірому блоці знизу)
         html += `
         <li class="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm border-l-4 ${borderClass} transition hover:bg-gray-100 dark:hover:bg-gray-700">
             <div class="flex-grow pr-2">

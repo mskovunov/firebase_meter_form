@@ -88,7 +88,7 @@ async function handleChartModeChange(mode) {
     } else {
         // Для живых графиков используем кэш, если он есть
         Charts.setMonChartMode(mode, monDataCache, todayStartEnergy);
-        document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString()}`;
+        document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString([], { hour12: false })}`;
     }
 }
 
@@ -171,7 +171,7 @@ function startMonitoringListener() {
         // Але тільки якщо ми не в режимі історії (бо там дані статичні)
         if (activeMonMode !== 'energy') {
             Charts.setMonChartMode(activeMonMode, monDataCache, todayStartEnergy);
-            document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString()}`;
+            document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString([], { hour12: false })}`;
         }
 
     }, (err) => console.error("Mon Error", err));
