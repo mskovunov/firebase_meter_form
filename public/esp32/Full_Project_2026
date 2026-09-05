@@ -1,503 +1,755 @@
-#define TINY_GSM_MODEM_SIM800
-#define TINY_GSM_RX_BUFFER 1024
+    #define TINY_GSM_MODEM_SIM800
+    #define TINY_GSM_RX_BUFFER 1024
 
-#include <WiFi.h>
-#include <HTTPClient.h> // Библиотека для прямого HTTPS (Wi-Fi)
-#include <TinyGsmClient.h>
-#include <ArduinoHttpClient.h> // Библиотека для PushingBox (GSM)
-#include <PZEM004Tv30.h>        // Для PZEM
-#include <Firebase_ESP_Client.h>
-#include <addons/TokenHelper.h>
-#include <esp_task_wdt.h>       // Сторожевой таймер
-#include <time.h>               // Время для логов
+    #include <WiFi.h>
+    #include <HTTPClient.h>
+    #include <TinyGsmClient.h>
+    #include <ArduinoHttpClient.h>
+    #include <PZEM004Tv30.h>
+    #include <Firebase_ESP_Client.h>
+    #include <addons/TokenHelper.h>
+    #include <esp_task_wdt.h>
+    #include <time.h>
+    #include <Preferences.h>
 
-// ================= НАСТРОЙКИ =================
-// ИЗМЕНЕНИЕ: Убрали const, чтобы управлять из базы
-bool ENABLE_WIFI = true;
-bool ENABLE_GSM = true;
+    // ================= НАСТРОЙКИ =================
+    bool ENABLE_WIFI = true;
+    bool ENABLE_GSM = false;
 
-const char *wifi_ssid = "Xiaomi_9D58";
-const char *wifi_pass = "Am5084ak";
+    const char *wifi_ssid = "Xiaomi_9D58";
+    const char *wifi_pass = "Am5084ak";
 
-// --- НАСТРОЙКИ ДЛЯ БЕЗЛИМИТНОГО WI-FI (Google) ---
-String GAS_SCRIPT_ID = "AKfycbyvn_NXzYXWankzZan3efMbUaQZNpjjNCBcmJNrGPHHkUoAfASHqMpmiy_Sm_Yuzt4d";
+    String GAS_SCRIPT_ID = "AKfycbyvn_NXzYXWankzZan3efMbUaQZNpjjNCBcmJNrGPHHkUoAfASHqMpmiy_Sm_Yuzt4d";
 
-// --- НАСТРОЙКИ ДЛЯ РЕЗЕРВНОГО GSM (PushingBox) ---
-const char apn[] = "internet";
-const char user[] = "";
-const char pass[] = "";
-const char *DEVID = "vA48E437DF1936FA"; // Ваш ID из PushingBox
+    const char apn[] = "internet";
+    const char user[] = "";
+    const char pass[] = "";
+    const char *DEVID = "vA48E437DF1936FA";
 
-// --- Firebase (Firestore) ---
-#define API_KEY "AIzaSyAsr-JbArcAu-7_csBxM6VDsC7hyPz7qB0"
-#define FIREBASE_PROJECT_ID "meter-form"
-#define USER_EMAIL "esp32@test.com"
-#define USER_PASSWORD "123456"
+    #define API_KEY "AIzaSyAsr-JbArcAu-7_csBxM6VDsC7hyPz7qB0"
+    #define FIREBASE_PROJECT_ID "meter-form"
+    #define USER_EMAIL "esp32@test.com"
+    #define USER_PASSWORD "123456"
 
-// ================= ПИНЫ =================
-#define MODEM_RST 23
-#define MODEM_TX 17
-#define MODEM_RX 16
+    // ================= ПИНЫ =================
+    #define MODEM_RST 23
+    #define MODEM_TX 17
+    #define MODEM_RX 16
 
-// PZEM (Serial1 - ВАЖНО: Используем Serial1 на кастомных пинах)
-#define PZEM_RX_PIN 26
-#define PZEM_TX_PIN 27
+    #define PZEM_RX_PIN 26
+    #define PZEM_TX_PIN 27
 
-#define MAINS_PIN 4
-#define BAT_PIN 34
+    #define MAINS_PIN 4
+    #define BAT_PIN 34
+    #define STATUS_LED 2
 
-// Тайм-аут зависания (120 секунд)
-#define WDT_TIMEOUT 120
+    #define WDT_TIMEOUT 120
+    #define HEARTBEAT_MS 10000
+    #define HTTP_TIMEOUT_MS 15000
+    #define FIREBASE_TIMEOUT_MS 15000
 
-// Настройки времени
-const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 7200;     // UTC+2
-const int daylightOffset_sec = 3600; 
+    const char *ntpServer = "pool.ntp.org";
+    const long gmtOffset_sec = 7200;
+    const int daylightOffset_sec = 3600;
 
-#define SerialMon Serial
-#define SerialAT Serial2
+    #define SerialMon Serial
+    #define SerialAT Serial2
 
-// ================= КЛИЕНТЫ =================
-// PZEM на Serial1 (HardwareSerial 1)
-HardwareSerial SerialPZEM(1); 
-PZEM004Tv30 pzem(SerialPZEM, PZEM_RX_PIN, PZEM_TX_PIN);
+    HardwareSerial SerialPZEM(1);
+    PZEM004Tv30 pzem(SerialPZEM, PZEM_RX_PIN, PZEM_TX_PIN);
 
-WiFiClient clientWifi;
-TinyGsm modem(SerialAT);
-TinyGsmClient clientGsm(modem);
-HttpClient httpGsm(clientGsm, "api.pushingbox.com", 80);
+    TinyGsm modem(SerialAT);
+    TinyGsmClient clientGsm(modem);
+    HttpClient httpGsm(clientGsm, "api.pushingbox.com", 80);
 
-// Firebase Объекты
-FirebaseData fbdo;
-FirebaseAuth auth;
-FirebaseConfig config;
+    FirebaseData fbdo;
+    FirebaseAuth auth;
+    FirebaseConfig config;
+    Preferences prefs;
 
-bool isPowerOn = true;
-unsigned long lastKeepAlive = 0;
+    bool isPowerOn = true;
+    bool gsmInited = false;
+    unsigned long lastKeepAlive = 0;
 
-// Переменная для динамического интервала БАТАРЕИ (по умолчанию 5 минут)
-unsigned long sendInterval = 300000; 
+    unsigned long sendInterval = 300000;
+    unsigned long sendIntervalPzem = 60000;
+    unsigned long sendPzemPrevMillis = 0;
+    unsigned long lastHeartbeatMs = 0;
+    unsigned long lastWifiAttemptMs = 0;
+    unsigned long mainsChangeMs = 0;
+    int lastStableMains = HIGH;
 
-// Переменная для динамического интервала PZEM (по умолчанию 60 сек)
-unsigned long sendIntervalPzem = 60000;
-unsigned long sendPzemPrevMillis = 0;
+    int getBatteryPercentage(bool charging, float &outVoltage);
+    bool sendSmart(int val, String deviceStatus, int batLevel, float voltage);
+    String getCurrentTime();
+    void sendLog(String message);
+    void wdtDelay(unsigned long ms);
+    void loadFlags();
+    void persistFlags();
+    bool ensureGsmReady();
+    bool writeFirestore(const char *collection, FirebaseJson &content);
+    void saveHeartbeat();
+    void printBootDiagnostics();
+    void tickLed();
+    void maintainWifi();
 
-// Предварительное объявление функций
-int getBatteryPercentage(bool charging, float &outVoltage);
-void sendSmart(int val, String deviceStatus, int batLevel, float voltage);
-String getCurrentTime();
-void sendLog(String message); // ДОБАВЛЕНО: Объявление функции логов
-
-void setup()
-{
-    SerialMon.begin(115200);
-    // ПРАВКА 1: Даем питанию стабилизироваться при включении
-    delay(2000);
-
-    // 1. Настройка WDT
-    SerialMon.println("Configuring WDT...");
-    esp_task_wdt_deinit(); // Убиваем старый таймер
-    esp_task_wdt_config_t wdt_config = {
-        .timeout_ms = WDT_TIMEOUT * 1000,
-        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
-        .trigger_panic = true
-    };
-    esp_task_wdt_init(&wdt_config);
-    esp_task_wdt_add(NULL);
-
-    pinMode(MAINS_PIN, INPUT);
-    pinMode(BAT_PIN, INPUT);
-
-    // 1. Инициализация GSM (Железо инициализируем всегда, использование зависит от флага)
-    // Так как при старте ENABLE_GSM = true, модем включится
-    if (ENABLE_GSM)
+    void tickLed()
     {
-        SerialAT.begin(57600, SERIAL_8N1, MODEM_RX, MODEM_TX);
-        delay(3000);
-        SerialMon.println("System Start. Init Modem...");
-        modem.restart();
-        httpGsm.setHttpResponseTimeout(90000);
+        digitalWrite(STATUS_LED, (millis() / 500) % 2);
     }
-    esp_task_wdt_reset();
 
-    // ПРАВКА 2: Пауза
-    delay(2000);
-    
-    // 2. Инициализация Wi-Fi
-    // Так как при старте ENABLE_WIFI = true, он подключится
-    if (ENABLE_WIFI)
+    void wdtDelay(unsigned long ms)
     {
-        SerialMon.println("Init Wi-Fi...");
-        WiFi.mode(WIFI_STA);
+        unsigned long start = millis();
+        while (millis() - start < ms)
+        {
+            tickLed();
+            esp_task_wdt_reset();
+            delay(50);
+        }
+    }
+
+    void maintainWifi()
+    {
+        if (!ENABLE_WIFI)
+            return;
+        if (WiFi.status() == WL_CONNECTED)
+            return;
+        if (millis() - lastWifiAttemptMs < 10000)
+            return;
+
+        lastWifiAttemptMs = millis();
+        SerialMon.printf("WiFi lost (status=%d), reconnecting...\n", WiFi.status());
+        WiFi.disconnect();
+        wdtDelay(100);
         WiFi.begin(wifi_ssid, wifi_pass);
-        
-        unsigned long startWifi = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - startWifi < 20000) {
-            SerialMon.print(".");
-            delay(300);
+    }
+
+    void loadFlags()
+    {
+        prefs.begin("net", true);
+        ENABLE_WIFI = prefs.getBool("wifi", true);
+        ENABLE_GSM = prefs.getBool("gsm", false);
+        prefs.end();
+    }
+
+    void persistFlags()
+    {
+        prefs.begin("net", false);
+        prefs.putBool("wifi", ENABLE_WIFI);
+        prefs.putBool("gsm", ENABLE_GSM);
+        prefs.end();
+    }
+
+    void saveHeartbeat()
+    {
+        time_t now = time(nullptr);
+        if (now < 1700000000)
+            return;
+
+        prefs.begin("diag", false);
+        prefs.putULong("hb", (uint32_t)now);
+        prefs.putUChar("wifiSt", (uint8_t)WiFi.status());
+        prefs.putInt("rssi", WiFi.RSSI());
+        prefs.end();
+        SerialMon.printf("HB wifi=%d rssi=%d\n", WiFi.status(), WiFi.RSSI());
+    }
+
+    void printBootDiagnostics()
+    {
+        pinMode(STATUS_LED, OUTPUT);
+        pinMode(0, INPUT);
+
+        prefs.begin("diag", false);
+        uint32_t boots = prefs.getULong("boots", 0) + 1;
+        uint32_t lastHb = prefs.getULong("hb", 0);
+        prefs.putULong("boots", boots);
+        prefs.end();
+
+        SerialMon.printf("Boot count: %u\n", boots);
+        SerialMon.printf("GPIO0=%d (must be 1 for normal boot)\n", digitalRead(0));
+
+        esp_reset_reason_t r = esp_reset_reason();
+        SerialMon.printf("Reset reason: %d ", (int)r);
+        switch (r)
+        {
+        case ESP_RST_POWERON:
+            SerialMon.println("POWERON");
+            break;
+        case ESP_RST_EXT:
+            SerialMon.println("EXTERNAL");
+            break;
+        case ESP_RST_SW:
+            SerialMon.println("SOFTWARE");
+            break;
+        case ESP_RST_PANIC:
+            SerialMon.println("PANIC");
+            break;
+        case ESP_RST_INT_WDT:
+            SerialMon.println("INT_WDT");
+            break;
+        case ESP_RST_TASK_WDT:
+            SerialMon.println("TASK_WDT");
+            break;
+        case ESP_RST_WDT:
+            SerialMon.println("WDT");
+            break;
+        case ESP_RST_BROWNOUT:
+            SerialMon.println("BROWNOUT");
+            break;
+        default:
+            SerialMon.println();
+            break;
+        }
+
+        if (lastHb == 0)
+        {
+            SerialMon.println("Last heartbeat: none (first run after flash)");
+            return;
+        }
+
+        struct tm t;
+        time_t hbTime = (time_t)lastHb;
+        localtime_r(&hbTime, &t);
+        char buf[32];
+        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &t);
+        SerialMon.printf("Last heartbeat: %s (unix %u)\n", buf, lastHb);
+        SerialMon.println("After NTP: compare this time with now. Gap >> 30s => MCU was DEAD without USB.");
+    }
+
+    bool ensureGsmReady()
+    {
+        if (gsmInited)
+            return true;
+
+        SerialMon.println("Init Modem...");
+        SerialAT.begin(57600, SERIAL_8N1, MODEM_RX, MODEM_TX);
+        wdtDelay(3000);
+        esp_task_wdt_reset();
+
+        bool ok = modem.init();
+        esp_task_wdt_reset();
+        if (!ok)
+        {
+            SerialMon.println("Modem init failed, trying restart...");
+            ok = modem.restart();
             esp_task_wdt_reset();
         }
-        if (WiFi.status() == WL_CONNECTED) SerialMon.println("\nWiFi Connected!");
-        else SerialMon.println("\nWiFi Failed");
-    }
 
-    // 3. Инициализация Времени
-    if (WiFi.status() == WL_CONNECTED) {
-        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-        struct tm timeinfo;
-        unsigned long startNtp = millis();
-        while (!getLocalTime(&timeinfo) && millis() - startNtp < 20000) {
-            SerialMon.print("."); delay(500); esp_task_wdt_reset();
-        }
-        if (getLocalTime(&timeinfo)) SerialMon.println("\nTime Synced: " + getCurrentTime());
-        else {
-             SerialMon.println("\nTime Sync FAILED! Trying backup...");
-             configTime(gmtOffset_sec, daylightOffset_sec, "time.google.com");
-        }
-    }
-
-    // 4. Инициализация Firebase
-    config.api_key = API_KEY;
-    auth.user.email = USER_EMAIL;
-    auth.user.password = USER_PASSWORD;
-    config.token_status_callback = tokenStatusCallback;
-    Firebase.begin(&config, &auth);
-    Firebase.reconnectWiFi(true);
-
-    // Проверка статуса при старте
-    if (digitalRead(MAINS_PIN) == HIGH)
-    {
-        isPowerOn = true;
-        SerialMon.println("STARTUP: Power ON");
-    }
-    else
-    {
-        isPowerOn = false;
-        SerialMon.println("STARTUP: Power OFF");
-    }
-
-    SerialMon.println("Setup Done. Sending Boot Info...");
-
-    // Первая отправка. Здесь мы и получим реальные настройки из базы.
-    float currentVolt = 0.0;
-    int bat = getBatteryPercentage(isPowerOn, currentVolt);
-
-    sendSmart(1, "SystemStart", bat, currentVolt);
-    
-    // ДОБАВЛЕНО: Отправка лога запуска в Firebase
-    sendLog("Запуск системи");
-    
-    sendPzemPrevMillis = millis(); // Старт таймера PZEM
-}
-
-void loop()
-{
-    esp_task_wdt_reset(); // Кормим собаку
-
-    int sensorVal = digitalRead(MAINS_PIN);
-    bool currentReading = (sensorVal == HIGH);
-
-    if (currentReading != isPowerOn)
-    {
-        delay(500);
-        if (digitalRead(MAINS_PIN) == sensorVal)
+        if (!ok)
         {
-            isPowerOn = currentReading;
+            SerialMon.println("Modem not ready, skip GSM");
+            return false;
+        }
 
-            float currentVolt = 0.0;
-            int bat = getBatteryPercentage(isPowerOn, currentVolt);
+        httpGsm.setHttpResponseTimeout(HTTP_TIMEOUT_MS);
+        gsmInited = true;
+        SerialMon.println("Modem ready");
+        return true;
+    }
 
-            if (isPowerOn)
+    bool writeFirestore(const char *collection, FirebaseJson &content)
+    {
+        esp_task_wdt_reset();
+        bool ok = Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", collection, content.raw());
+        esp_task_wdt_reset();
+        return ok;
+    }
+
+    void setup()
+    {
+        SerialMon.begin(115200);
+        delay(2000);
+        printBootDiagnostics();
+
+        loadFlags();
+        SerialMon.printf("Flags from NVS: WiFi=%s GSM=%s\n", ENABLE_WIFI ? "ON" : "OFF", ENABLE_GSM ? "ON" : "OFF");
+
+        SerialMon.println("Configuring WDT...");
+        esp_task_wdt_deinit();
+        esp_task_wdt_config_t wdt_config = {
+            .timeout_ms = WDT_TIMEOUT * 1000,
+            .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+            .trigger_panic = true};
+        esp_task_wdt_init(&wdt_config);
+        esp_task_wdt_add(NULL);
+
+        pinMode(MAINS_PIN, INPUT);
+        pinMode(BAT_PIN, INPUT);
+
+        if (ENABLE_GSM)
+        {
+            ensureGsmReady();
+        }
+        else
+        {
+            SerialMon.println("GSM OFF (NVS) — modem skipped");
+        }
+        esp_task_wdt_reset();
+
+        wdtDelay(500);
+
+        if (ENABLE_WIFI)
+        {
+            SerialMon.println("Init Wi-Fi...");
+            WiFi.mode(WIFI_STA);
+            WiFi.begin(wifi_ssid, wifi_pass);
+
+            unsigned long startWifi = millis();
+            while (WiFi.status() != WL_CONNECTED && millis() - startWifi < 20000)
             {
-                SerialMon.println("EVENT: Power Restored");
-                sendSmart(1, "PowerRestored", bat, currentVolt);
+                SerialMon.print(".");
+                delay(300);
+                esp_task_wdt_reset();
             }
+            if (WiFi.status() == WL_CONNECTED)
+                SerialMon.println("\nWiFi Connected!");
             else
-            {
-                SerialMon.println("EVENT: Power Lost");
-                sendSmart(0, "PowerLost", bat, currentVolt);
-            }
-            delay(2000); 
-        }
-    }
-
-    // --- ЗАДАЧА 2: ОТЧЕТ PZEM (FIREBASE) ---
-    // ИЗМЕНЕНИЕ: Добавили проверку флага ENABLE_WIFI
-    if (ENABLE_WIFI && WiFi.status() == WL_CONNECTED && Firebase.ready() && (millis() - sendPzemPrevMillis > sendIntervalPzem)) {
-        
-        sendPzemPrevMillis = millis();
-        esp_task_wdt_reset();
-
-        float voltage = pzem.voltage();
-        float current = pzem.current();
-        float power = pzem.power();
-        float energy = pzem.energy();
-
-        if (isnan(voltage) || voltage < 0) voltage = 0.0;
-        if (isnan(current) || current < 0) current = 0.0;
-        if (isnan(power) || power < 0) power = 0.0;
-        if (isnan(energy) || energy < 0) energy = 0.0;
-
-        double cleanVoltage = round(voltage * 10) / 10.0;
-        double cleanCurrent = round(current * 1000) / 1000.0;
-        double cleanPower = round(power * 10) / 10.0;
-        double cleanEnergy = round(energy * 1000) / 1000.0;
-
-        String timeStr = getCurrentTime();
-        SerialMon.println("--------------------------------------");
-        SerialMon.printf("[%s] PZEM READINGS (Int: %ds):\n", timeStr.c_str(), sendIntervalPzem/1000);
-        SerialMon.printf("Voltage: %.1f V\n", cleanVoltage);
-        SerialMon.printf("Current: %.3f A\n", cleanCurrent);
-        SerialMon.printf("Power:   %.1f W\n", cleanPower);
-        SerialMon.printf("Energy:  %.3f kWh\n", cleanEnergy);
-        SerialMon.println("Sending to Firebase...");
-        SerialMon.println("--------------------------------------");
-
-        FirebaseJson content;
-        content.set("fields/voltage/doubleValue", cleanVoltage);
-        content.set("fields/current/doubleValue", cleanCurrent);
-        content.set("fields/power/doubleValue", cleanPower);
-        content.set("fields/energy/doubleValue", cleanEnergy);
-        content.set("fields/created_at/stringValue", timeStr);
-        content.set("fields/timestamp_unix/integerValue", (int)time(nullptr));
-
-        if (Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", "meter_readings", content.raw())) {
-            SerialMon.println(">>> FIREBASE SUCCESS.");
-        } else {
-            SerialMon.printf(">>> FIREBASE ERROR: %s\n", fbdo.errorReason().c_str());
-        }
-        
-        // lastKeepAlive = millis() + 5000; 
-        esp_task_wdt_reset();
-    }
-
-    // --- ЗАДАЧА 3: БАТАРЕЯ (GAS/GSM) + ОБНОВЛЕНИЕ НАСТРОЕК ---
-    if (millis() - lastKeepAlive > sendInterval)
-    {
-        if (millis() - sendPzemPrevMillis < 5000) {
-            // Ждем
-        } else {
-            float currentVolt = 0.0;
-            int bat = getBatteryPercentage(isPowerOn, currentVolt);
-
-            SerialMon.print("Routine Check (Interval: ");
-            SerialMon.print(sendInterval / 1000);
-            SerialMon.println("s)...");
-            
-            sendSmart(isPowerOn ? 1 : 0, "RoutineCheck", bat, currentVolt);
-            lastKeepAlive = millis();
-        }
-    }
-    delay(100);
-}
-
-// ================= ФУНКЦИИ =================
-
-void sendSmart(int val, String deviceStatus, int batLevel, float voltage)
-{
-    bool sent = false;
-
-    // --- 1. КАНАЛ WI-FI (ПРЯМОЙ В GOOGLE - БЕЗЛИМИТ) ---
-    // ИЗМЕНЕНИЕ: Проверяем флаг ENABLE_WIFI
-    if (ENABLE_WIFI)
-    {
-        if (WiFi.status() != WL_CONNECTED)
-        {
-            SerialMon.print("Wi-Fi reconnecting...");
-            WiFi.reconnect();
-            for (int i = 0; i < 30; i++)
-            {
-                if (WiFi.status() == WL_CONNECTED) break;
-                SerialMon.print("."); delay(100); esp_task_wdt_reset();
-            }
-            SerialMon.println();
+                SerialMon.println("\nWiFi Failed");
         }
 
         if (WiFi.status() == WL_CONNECTED)
         {
-            HTTPClient http;
-
-            String url = "https://script.google.com/macros/s/" + GAS_SCRIPT_ID + "/exec";
-            url += "?val=" + String(val);
-            url += "&device=" + deviceStatus;
-            url += "&bat=" + String(batLevel);
-            url += "&volt=" + String(voltage, 2); 
-
-            http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-            http.begin(url); 
-
-            SerialMon.print("[Wi-Fi Direct] Sending... ");
-            int httpCode = http.GET();
-
-            if (httpCode == 200)
+            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+            struct tm timeinfo;
+            unsigned long startNtp = millis();
+            while (!getLocalTime(&timeinfo) && millis() - startNtp < 20000)
             {
-                // ИЗМЕНЕНИЕ: Парсим "Bat,Pzem,Wifi,Gsm"
-                String payload = http.getString();
-                SerialMon.print("GAS Config: ");
-                SerialMon.println(payload);
-                
-                int idx1 = payload.indexOf(',');
-                int idx2 = payload.indexOf(',', idx1 + 1);
-                int idx3 = payload.indexOf(',', idx2 + 1);
-                
-                if (idx3 > 0) {
-                    // Разбираем строку
-                    String sBat  = payload.substring(0, idx1);
-                    String sPzem = payload.substring(idx1 + 1, idx2);
-                    String sWifi = payload.substring(idx2 + 1, idx3);
-                    String sGsm  = payload.substring(idx3 + 1);
-                    
-                    int newBat = sBat.toInt();
-                    int newPzem = sPzem.toInt();
-                    
-                    if (newBat >= 10 && newBat <= 3600) sendInterval = newBat * 1000;
-                    if (newPzem >= 10 && newPzem <= 3600) sendIntervalPzem = newPzem * 1000;
-                    
-                    // Обновляем флаги
-                    bool newWifiState = (sWifi.toInt() == 1);
-                    bool newGsmState = (sGsm.toInt() == 1);
-                    
-                    if (ENABLE_WIFI != newWifiState) {
-                        ENABLE_WIFI = newWifiState;
-                        SerialMon.print("!!! WIFI Config Changed: "); SerialMon.println(ENABLE_WIFI ? "ON" : "OFF");
+                SerialMon.print(".");
+                delay(500);
+                esp_task_wdt_reset();
+            }
+            if (getLocalTime(&timeinfo))
+            {
+                SerialMon.println("\nTime Synced: " + getCurrentTime());
+                prefs.begin("diag", true);
+                uint32_t lastHb = prefs.getULong("hb", 0);
+                prefs.end();
+                time_t now = time(nullptr);
+                if (lastHb > 0 && now > 1700000000)
+                {
+                    long gap = (long)now - (long)lastHb;
+                    SerialMon.printf("Heartbeat gap: %ld sec => %s\n", gap,
+                                    gap > 30 ? "MCU was DEAD/RESET while USB was out" : "MCU was ALIVE (USB unplug did not kill it)");
+                }
+            }
+            else
+            {
+                SerialMon.println("\nTime Sync FAILED! Trying backup...");
+                configTime(gmtOffset_sec, daylightOffset_sec, "time.google.com");
+            }
+        }
+
+        config.api_key = API_KEY;
+        auth.user.email = USER_EMAIL;
+        auth.user.password = USER_PASSWORD;
+        config.token_status_callback = tokenStatusCallback;
+        config.timeout.networkReconnect = 10 * 1000;
+        config.timeout.socketConnection = FIREBASE_TIMEOUT_MS;
+        config.timeout.serverResponse = FIREBASE_TIMEOUT_MS;
+        Firebase.begin(&config, &auth);
+        Firebase.reconnectWiFi(true);
+
+        lastStableMains = digitalRead(MAINS_PIN);
+        if (lastStableMains == HIGH)
+        {
+            isPowerOn = true;
+            SerialMon.println("STARTUP: Power ON");
+        }
+        else
+        {
+            isPowerOn = false;
+            SerialMon.println("STARTUP: Power OFF");
+        }
+
+        SerialMon.println("Setup Done. Sending Boot Info...");
+
+        float currentVolt = 0.0;
+        int bat = getBatteryPercentage(isPowerOn, currentVolt);
+
+        sendSmart(1, "SystemStart", bat, currentVolt);
+        sendLog("Запуск системи");
+
+        sendPzemPrevMillis = millis();
+        lastKeepAlive = millis();
+    }
+
+    void loop()
+    {
+        esp_task_wdt_reset();
+        tickLed();
+        maintainWifi();
+
+        if (millis() - lastHeartbeatMs >= HEARTBEAT_MS)
+        {
+            lastHeartbeatMs = millis();
+            saveHeartbeat();
+        }
+
+        int rawMains = digitalRead(MAINS_PIN);
+        if (rawMains != lastStableMains)
+        {
+            if (mainsChangeMs == 0)
+                mainsChangeMs = millis();
+            else if (millis() - mainsChangeMs >= 1500)
+            {
+                lastStableMains = rawMains;
+                mainsChangeMs = 0;
+                isPowerOn = (rawMains == HIGH);
+
+                float currentVolt = 0.0;
+                int bat = getBatteryPercentage(isPowerOn, currentVolt);
+
+                if (isPowerOn)
+                {
+                    SerialMon.println("EVENT: Power Restored");
+                    sendSmart(1, "PowerRestored", bat, currentVolt);
+                }
+                else
+                {
+                    SerialMon.println("EVENT: Power Lost");
+                    sendSmart(0, "PowerLost", bat, currentVolt);
+                }
+            }
+        }
+        else
+        {
+            mainsChangeMs = 0;
+        }
+
+        if (ENABLE_WIFI && WiFi.status() == WL_CONNECTED && Firebase.ready() && (millis() - sendPzemPrevMillis > sendIntervalPzem))
+        {
+            sendPzemPrevMillis = millis();
+            esp_task_wdt_reset();
+
+            float voltage = pzem.voltage();
+            esp_task_wdt_reset();
+            float current = pzem.current();
+            esp_task_wdt_reset();
+            float power = pzem.power();
+            esp_task_wdt_reset();
+            float energy = pzem.energy();
+            esp_task_wdt_reset();
+
+            if (isnan(voltage) || voltage < 0)
+                voltage = 0.0;
+            if (isnan(current) || current < 0)
+                current = 0.0;
+            if (isnan(power) || power < 0)
+                power = 0.0;
+            if (isnan(energy) || energy < 0)
+                energy = 0.0;
+
+            double cleanVoltage = round(voltage * 10) / 10.0;
+            double cleanCurrent = round(current * 1000) / 1000.0;
+            double cleanPower = round(power * 10) / 10.0;
+            double cleanEnergy = round(energy * 1000) / 1000.0;
+
+            String timeStr = getCurrentTime();
+            SerialMon.println("--------------------------------------");
+            SerialMon.printf("[%s] PZEM READINGS (Int: %ds):\n", timeStr.c_str(), sendIntervalPzem / 1000);
+            SerialMon.printf("Voltage: %.1f V\n", cleanVoltage);
+            SerialMon.printf("Current: %.3f A\n", cleanCurrent);
+            SerialMon.printf("Power:   %.1f W\n", cleanPower);
+            SerialMon.printf("Energy:  %.3f kWh\n", cleanEnergy);
+            SerialMon.println("Sending to Firebase...");
+            SerialMon.println("--------------------------------------");
+
+            FirebaseJson content;
+            content.set("fields/voltage/doubleValue", cleanVoltage);
+            content.set("fields/current/doubleValue", cleanCurrent);
+            content.set("fields/power/doubleValue", cleanPower);
+            content.set("fields/energy/doubleValue", cleanEnergy);
+            content.set("fields/created_at/stringValue", timeStr);
+            content.set("fields/timestamp_unix/integerValue", (int)time(nullptr));
+
+            if (writeFirestore("meter_readings", content))
+                SerialMon.println(">>> FIREBASE SUCCESS.");
+            else
+                SerialMon.printf(">>> FIREBASE ERROR: %s\n", fbdo.errorReason().c_str());
+        }
+
+        if (millis() - lastKeepAlive > sendInterval)
+        {
+            if (millis() - sendPzemPrevMillis >= 5000)
+            {
+                float currentVolt = 0.0;
+                int bat = getBatteryPercentage(isPowerOn, currentVolt);
+
+                SerialMon.print("Routine Check (Interval: ");
+                SerialMon.print(sendInterval / 1000);
+                SerialMon.println("s)...");
+
+                if (sendSmart(isPowerOn ? 1 : 0, "RoutineCheck", bat, currentVolt))
+                    lastKeepAlive = millis();
+                else
+                    SerialMon.println("Routine send failed — retry on next interval");
+            }
+        }
+        delay(100);
+    }
+
+    bool sendSmart(int val, String deviceStatus, int batLevel, float voltage)
+    {
+        bool sent = false;
+
+        if (ENABLE_WIFI)
+        {
+            if (WiFi.status() != WL_CONNECTED)
+            {
+                SerialMon.print("Wi-Fi reconnecting...");
+                WiFi.reconnect();
+                for (int i = 0; i < 50; i++)
+                {
+                    if (WiFi.status() == WL_CONNECTED)
+                        break;
+                    SerialMon.print(".");
+                    wdtDelay(100);
+                }
+                SerialMon.println();
+            }
+
+            if (WiFi.status() == WL_CONNECTED)
+            {
+                HTTPClient http;
+
+                String url = "https://script.google.com/macros/s/" + GAS_SCRIPT_ID + "/exec";
+                url += "?val=" + String(val);
+                url += "&device=" + deviceStatus;
+                url += "&bat=" + String(batLevel);
+                url += "&volt=" + String(voltage, 2);
+
+                http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+                http.setTimeout(HTTP_TIMEOUT_MS);
+                http.setConnectTimeout(10000);
+                http.begin(url);
+
+                SerialMon.print("[Wi-Fi Direct] Sending... ");
+                tickLed();
+                esp_task_wdt_reset();
+                int httpCode = http.GET();
+                tickLed();
+                esp_task_wdt_reset();
+
+                if (httpCode == 200)
+                {
+                    String payload = http.getString();
+                    SerialMon.print("GAS Config: ");
+                    SerialMon.println(payload);
+
+                    int idx1 = payload.indexOf(',');
+                    int idx2 = payload.indexOf(',', idx1 + 1);
+                    int idx3 = payload.indexOf(',', idx2 + 1);
+
+                    if (idx3 > 0)
+                    {
+                        String sBat = payload.substring(0, idx1);
+                        String sPzem = payload.substring(idx1 + 1, idx2);
+                        String sWifi = payload.substring(idx2 + 1, idx3);
+                        String sGsm = payload.substring(idx3 + 1);
+
+                        int newBat = sBat.toInt();
+                        int newPzem = sPzem.toInt();
+
+                        if (newBat >= 10 && newBat <= 3600)
+                            sendInterval = newBat * 1000;
+                        if (newPzem >= 10 && newPzem <= 3600)
+                            sendIntervalPzem = newPzem * 1000;
+
+                        bool newWifiState = (sWifi.toInt() == 1);
+                        bool newGsmState = (sGsm.toInt() == 1);
+                        bool flagsChanged = (ENABLE_WIFI != newWifiState) || (ENABLE_GSM != newGsmState);
+
+                        if (ENABLE_WIFI != newWifiState)
+                        {
+                            ENABLE_WIFI = newWifiState;
+                            SerialMon.print("!!! WIFI Config Changed: ");
+                            SerialMon.println(ENABLE_WIFI ? "ON" : "OFF");
+                        }
+                        if (ENABLE_GSM != newGsmState)
+                        {
+                            ENABLE_GSM = newGsmState;
+                            SerialMon.print("!!! GSM Config Changed: ");
+                            SerialMon.println(ENABLE_GSM ? "ON" : "OFF");
+                        }
+
+                        persistFlags();
+                        if (flagsChanged && ENABLE_GSM)
+                            SerialMon.println("GSM ON saved. Modem will start on next boot or first GSM fallback.");
                     }
-                    if (ENABLE_GSM != newGsmState) {
-                        ENABLE_GSM = newGsmState;
-                        SerialMon.print("!!! GSM Config Changed: "); SerialMon.println(ENABLE_GSM ? "ON" : "OFF");
+                    else
+                    {
+                        int newSec = payload.toInt();
+                        if (newSec >= 10 && newSec <= 3600)
+                            sendInterval = newSec * 1000;
                     }
 
-                } else {
-                    // Если пришло старое (одно число)
-                    int newSec = payload.toInt();
-                    if (newSec >= 10 && newSec <= 3600) sendInterval = newSec * 1000;
+                    sent = true;
                 }
-                
+                else
+                {
+                    SerialMon.print("Error: ");
+                    SerialMon.println(httpCode);
+                }
+                http.end();
+            }
+        }
+        else
+        {
+            SerialMon.println("Wi-Fi is DISABLED by Config.");
+        }
+
+        if (!sent && ENABLE_GSM)
+        {
+            SerialMon.println("[GSM] Switching to Backup (PushingBox)...");
+
+            if (!ensureGsmReady())
+                return false;
+
+            if (!modem.isGprsConnected())
+            {
+                SerialMon.print("[GSM] Connecting GPRS... ");
+                esp_task_wdt_reset();
+                if (!modem.gprsConnect(apn, user, pass))
+                {
+                    SerialMon.println("FAIL. Skip restart to avoid hang.");
+                    esp_task_wdt_reset();
+                    return false;
+                }
+                SerialMon.println("OK");
+                esp_task_wdt_reset();
+            }
+
+            String path = "/pushingbox?devid=" + String(DEVID) +
+                        "&val=" + String(val) +
+                        "&device=" + deviceStatus +
+                        "&bat=" + String(batLevel) +
+                        "&volt=" + String(voltage, 2);
+
+            SerialMon.print("[GSM] Sending... ");
+            httpGsm.stop();
+            esp_task_wdt_reset();
+            int err = httpGsm.get(path);
+            esp_task_wdt_reset();
+
+            if (err == 0)
+            {
+                SerialMon.println("Success! (Backup used)");
+                httpGsm.responseBody();
                 sent = true;
             }
             else
             {
-                SerialMon.print("Error: "); SerialMon.println(httpCode);
+                SerialMon.println("Error via GSM: " + String(err));
             }
-            http.end();
         }
-    }
-    else {
-        SerialMon.println("Wi-Fi is DISABLED by Config.");
+
+        return sent;
     }
 
-    // --- 2. КАНАЛ GSM (РЕЗЕРВ ЧЕРЕЗ PUSHINGBOX) ---
-    // ИЗМЕНЕНИЕ: Проверяем флаг ENABLE_GSM
-    if (!sent && ENABLE_GSM)
+    int getBatteryPercentage(bool charging, float &outVoltage)
     {
-        SerialMon.println("[GSM] Switching to Backup (PushingBox)...");
-
-        if (!modem.isGprsConnected())
+        long sum = 0;
+        for (int i = 0; i < 50; i++)
         {
-            SerialMon.print("[GSM] Connecting GPRS... ");
-            if (!modem.gprsConnect(apn, user, pass))
-            {
-                SerialMon.println("FAIL. Resetting modem...");
-                modem.restart();
-                return;
-            }
-            SerialMon.println("OK");
+            sum += analogRead(BAT_PIN);
+            delay(2);
         }
+        float average = sum / 50.0;
 
-        String path = "/pushingbox?devid=" + String(DEVID) +
-                      "&val=" + String(val) +
-                      "&device=" + deviceStatus +
-                      "&bat=" + String(batLevel) +
-                      "&volt=" + String(voltage, 2); 
-
-        SerialMon.print("[GSM] Sending... ");
-        httpGsm.stop();
-        int err = httpGsm.get(path);
-
-        if (err == 0)
-        {
-            SerialMon.println("Success! (Backup used)");
-            httpGsm.responseBody();
-        }
+        if (charging)
+            outVoltage = (average / 4095.0) * 3.3 * 2.12;
         else
-        {
-            SerialMon.println("Error via GSM: " + String(err));
-        }
-    }
-}
+            outVoltage = (average / 4095.0) * 3.3 * 2.34;
 
-int getBatteryPercentage(bool charging, float &outVoltage)
-{
-    long sum = 0;
-    for (int i = 0; i < 50; i++) 
+        int percentage = 0;
+        float v = outVoltage;
+
+        if (v >= 4.15)
+            percentage = 100;
+        else if (v >= 4.05)
+            percentage = 95;
+        else if (v >= 3.95)
+            percentage = 85;
+        else if (v >= 3.85)
+            percentage = 75;
+        else if (v >= 3.75)
+            percentage = 60;
+        else if (v >= 3.65)
+            percentage = 40;
+        else if (v >= 3.50)
+            percentage = 15;
+        else
+            percentage = 0;
+
+        if (charging && percentage < 100 && v > 3.9)
+            percentage += 2;
+
+        SerialMon.print("Bat: ");
+        SerialMon.print(outVoltage);
+        SerialMon.print("V | ");
+        SerialMon.print(percentage);
+        SerialMon.println("%");
+        return percentage;
+    }
+
+    String getCurrentTime()
     {
-        sum += analogRead(BAT_PIN);
-        delay(2);
+        struct tm timeinfo;
+        if (!getLocalTime(&timeinfo))
+            return "TimeError";
+        char timeStringBuff[50];
+        strftime(timeStringBuff, sizeof(timeStringBuff), "%Y-%m-%d %H:%M:%S", &timeinfo);
+        return String(timeStringBuff);
     }
-    float average = sum / 50.0;
-    
-    if (charging) outVoltage = (average / 4095.0) * 3.3 * 2.12;
-    else outVoltage = (average / 4095.0) * 3.3 * 2.34;
 
-    int percentage = 0;
-    float v = outVoltage;
+    void sendLog(String message)
+    {
+        if (ENABLE_WIFI && WiFi.status() == WL_CONNECTED && Firebase.ready())
+        {
+            SerialMon.println("Logging to Firestore...");
 
-    if (v >= 4.15) percentage = 100;
-    else if (v >= 4.05) percentage = 95;
-    else if (v >= 3.95) percentage = 85;
-    else if (v >= 3.85) percentage = 75;
-    else if (v >= 3.75) percentage = 60;
-    else if (v >= 3.65) percentage = 40;
-    else if (v >= 3.50) percentage = 15;
-    else percentage = 0;
+            FirebaseJson content;
+            content.set("fields/message/stringValue", message);
+            content.set("fields/created_at/stringValue", getCurrentTime());
 
-    if (charging && percentage < 100 && v > 3.9) percentage += 2;
+            String reason = "Unknown";
+            esp_reset_reason_t r = esp_reset_reason();
+            switch (r)
+            {
+            case ESP_RST_POWERON:
+                reason = "Power ON (Живлення)";
+                break;
+            case ESP_RST_EXT:
+                reason = "External Reset (Кнопка)";
+                break;
+            case ESP_RST_SW:
+                reason = "Software Reset (Код)";
+                break;
+            case ESP_RST_PANIC:
+                reason = "Crash/Panic (Помилка)";
+                break;
+            case ESP_RST_INT_WDT:
+                reason = "Int. Watchdog";
+                break;
+            case ESP_RST_TASK_WDT:
+                reason = "Task Watchdog (Зависання)";
+                break;
+            case ESP_RST_WDT:
+                reason = "Other Watchdog";
+                break;
+            case ESP_RST_BROWNOUT:
+                reason = "Brownout (Просадка напруги)";
+                break;
+            default:
+                reason = String(r);
+                break;
+            }
+            content.set("fields/reason/stringValue", reason);
 
-    SerialMon.print("Bat: ");
-    SerialMon.print(outVoltage);
-    SerialMon.print("V | ");
-    SerialMon.print(percentage);
-    SerialMon.println("%");
-    return percentage;
-}
-
-String getCurrentTime() {
-    struct tm timeinfo;
-    if (!getLocalTime(&timeinfo)) return "TimeError";
-    char timeStringBuff[50];
-    strftime(timeStringBuff, sizeof(timeStringBuff), "%Y-%m-%d %H:%M:%S", &timeinfo);
-    return String(timeStringBuff);
-}
-
-// ДОБАВЛЕНО: Функция отправки логов
-void sendLog(String message) {
-    if (ENABLE_WIFI && WiFi.status() == WL_CONNECTED && Firebase.ready()) {
-        
-        SerialMon.println("Logging to Firestore...");
-        
-        FirebaseJson content;
-        content.set("fields/message/stringValue", message);
-        content.set("fields/created_at/stringValue", getCurrentTime());
-
-        // Определяем причину перезагрузки
-        String reason = "Unknown";
-        esp_reset_reason_t r = esp_reset_reason();
-        switch (r) {
-            case ESP_RST_POWERON: reason = "Power ON (Живлення)"; break;
-            case ESP_RST_EXT: reason = "External Reset (Кнопка)"; break;
-            case ESP_RST_SW: reason = "Software Reset (Код)"; break;
-            case ESP_RST_PANIC: reason = "Crash/Panic (Помилка)"; break;
-            case ESP_RST_INT_WDT: reason = "Int. Watchdog"; break;
-            case ESP_RST_TASK_WDT: reason = "Task Watchdog (Зависання)"; break;
-            case ESP_RST_WDT: reason = "Other Watchdog"; break;
-            case ESP_RST_BROWNOUT: reason = "Brownout (Просадка напруги)"; break;
-            default: reason = String(r); break;
-        }
-        content.set("fields/reason/stringValue", reason);
-
-        if (Firebase.Firestore.createDocument(&fbdo, FIREBASE_PROJECT_ID, "", "system_logs", content.raw())) {
-            SerialMon.println("Log sent!");
-        } else {
-            SerialMon.println("Log failed.");
+            if (writeFirestore("system_logs", content))
+                SerialMon.println("Log sent!");
+            else
+                SerialMon.println("Log failed.");
         }
     }
-}
