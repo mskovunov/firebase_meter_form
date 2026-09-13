@@ -271,7 +271,7 @@ export function updateMonitoringChart(todayStartEnergy) {
             color = '#3B82F6'; bgColor = 'rgba(59, 130, 246, 0.2)';
         } else if (monCurrentMode === 'daily') {
             data = chartData.map(d => {
-                if(todayStartEnergy) return Math.max(0, (d.energy - todayStartEnergy)).toFixed(3);
+                if (todayStartEnergy != null) return Math.max(0, (d.energy - todayStartEnergy)).toFixed(3);
                 return 0;
             });
             label = t.cDaily || 'За сьогодні (kWh)'; 

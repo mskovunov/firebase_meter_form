@@ -64,9 +64,7 @@ function handleViewChange(viewName) {
     
     if (viewName === 'monitoring') {
         startMonitoringListener();
-        // Убрали принудительный вызов handleChartModeChange отсюда,
-        // чтобы не рисовать пустой график до загрузки данных.
-        // Отрисовка произойдет сама внутри startMonitoringListener -> onSnapshot
+        fetchTodayStart();
     }
 
     // 3. ЯКЩО ВІДКРИЛИ НАЛАШТУВАННЯ - ВАНТАЖИМО ДАНІ
@@ -129,23 +127,30 @@ function refreshData() {
 }
 
 // === MONITORING LOGIC ===
+function refreshMonitoringCards() {
+    if (monDataCache.length === 0) return;
+    const latest = monDataCache[monDataCache.length - 1];
+    UI.updateMonitoringCards(latest, todayStartEnergy);
+    if (activeMonMode !== 'energy') {
+        Charts.setMonChartMode(activeMonMode, monDataCache, todayStartEnergy);
+    }
+}
+
 async function fetchTodayStart() {
     const now = new Date();
     const dateString = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const startOfDayStr = dateString + " 00:00:00";
-    const qDaily = query(collection(db, "meter_readings"), where("created_at", ">=", startOfDayStr), orderBy("created_at", "asc"), limit(1));
+    const qDaily = query(collection(db, "meter_readings"), where("created_at", ">=", startOfDayStr), orderBy("created_at", "asc"), limit(200));
     try {
        const snap = await getDocs(qDaily);
-       if(!snap.empty) {
-           todayStartEnergy = snap.docs[0].data().energy;
-       }
+       const firstValid = snap.docs.map(doc => doc.data()).find(d => Number(d.energy) >= 0.1);
+       todayStartEnergy = firstValid ? Number(firstValid.energy) : null;
+       refreshMonitoringCards();
     } catch(e) { console.log("Daily fetch error", e); }
 }
 
 function startMonitoringListener() {
     if(monUnsubscribe) return; 
-
-    fetchTodayStart();
     
     const qMon = query(collection(db, "meter_readings"), orderBy("created_at", "desc"), limit(200));
     
@@ -162,15 +167,9 @@ function startMonitoringListener() {
         if (docs.length === 0) return;
         
         // Оновлюємо кеш живих даних
-        monDataCache = docs.reverse(); 
-        const latest = monDataCache[monDataCache.length - 1];
-        
-        UI.updateMonitoringCards(latest, todayStartEnergy);
-        
-        // ВАЖЛИВО: Як тільки прийшли дані - оновлюємо графік
-        // Але тільки якщо ми не в режимі історії (бо там дані статичні)
+        monDataCache = docs.reverse();
+        refreshMonitoringCards();
         if (activeMonMode !== 'energy') {
-            Charts.setMonChartMode(activeMonMode, monDataCache, todayStartEnergy);
             document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString([], { hour12: false })}`;
         }
 
