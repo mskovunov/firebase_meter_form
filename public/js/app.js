@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=6';
-import * as Charts from './charts.js?v=7';
+import * as UI from './ui.js?v=8';
+import * as Charts from './charts.js?v=9';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -20,6 +20,7 @@ let graphsUnsubscribe = null;
 let meterDocs = [];
 let meterUnsubscribe = null;
 let latestSupplyReading = null;
+let batteryCapacityKwh = 1.2;
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
     Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
     startSupplyListener();
+    fetchTodayStart();
+    loadSettingsFromDB();
     
     window.setMonChartMode = (mode) => {
         handleChartModeChange(mode);
@@ -61,6 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ДОДАНО: Експорт функції збереження PZEM
     window.savePzemSettings = () => {
         savePzemSettingsToDB();
+    };
+    window.saveBatteryCapacity = () => {
+        saveBatteryCapacityToDB();
     };
 });
 
@@ -233,6 +239,7 @@ function startSupplyListener() {
         if (!reading) return;
         latestSupplyReading = reading;
         UI.renderSupplyStatus(latestSupplyReading, currentLang);
+        UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
     }, (err) => console.error("Supply listener error:", err));
 }
 
@@ -303,7 +310,10 @@ function refreshData() {
     if(currentDocs.length > 0) {
         UI.renderHome(currentDocs, currentLang);
     }
-    if (latestSupplyReading) UI.renderSupplyStatus(latestSupplyReading, currentLang);
+    if (latestSupplyReading) {
+        UI.renderSupplyStatus(latestSupplyReading, currentLang);
+        UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+    }
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
 }
 
@@ -327,6 +337,7 @@ async function fetchTodayStart() {
        const firstValid = snap.docs.map(doc => doc.data()).find(d => UI.isPlausibleMeterReading(d) && Number(d.energy) >= 0.1);
        todayStartEnergy = firstValid ? Number(firstValid.energy) : null;
        refreshMonitoringCards();
+       if (latestSupplyReading) UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
     } catch(e) { console.log("Daily fetch error", e); }
 }
 
@@ -393,14 +404,18 @@ const CONFIG_DOC = "config";
 
 async function loadSettingsFromDB() {
     const inputMain = document.getElementById('input-interval');
-    const inputPzem = document.getElementById('input-pzem-interval'); // ДОДАНО
+    const inputPzem = document.getElementById('input-pzem-interval');
+    const inputBattery = document.getElementById('input-battery-capacity');
     
-    // Блокуємо інпути поки вантажиться
     inputMain.disabled = true;
     inputMain.classList.add('opacity-50');
     if (inputPzem) {
         inputPzem.disabled = true;
         inputPzem.classList.add('opacity-50');
+    }
+    if (inputBattery) {
+        inputBattery.disabled = true;
+        inputBattery.classList.add('opacity-50');
     }
 
     try {
@@ -417,6 +432,14 @@ async function loadSettingsFromDB() {
             if (inputPzem && data.pzem_interval) {
                 inputPzem.value = data.pzem_interval;
             }
+            const capacity = Number(data.battery_capacity_kwh);
+            if (Number.isFinite(capacity) && capacity > 0) {
+                batteryCapacityKwh = capacity;
+                if (inputBattery) inputBattery.value = capacity;
+                if (latestSupplyReading) UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+            } else if (inputBattery && !inputBattery.value) {
+                inputBattery.value = batteryCapacityKwh;
+            }
         } else {
             console.log("No settings doc found!");
         }
@@ -428,6 +451,11 @@ async function loadSettingsFromDB() {
         if (inputPzem) {
             inputPzem.disabled = false;
             inputPzem.classList.remove('opacity-50');
+        }
+        if (inputBattery) {
+            inputBattery.disabled = false;
+            inputBattery.classList.remove('opacity-50');
+            if (!inputBattery.value) inputBattery.value = batteryCapacityKwh;
         }
     }
 }
@@ -512,6 +540,44 @@ async function savePzemSettingsToDB() {
 
     } catch (e) {
         console.error("Error saving PZEM settings:", e);
+        status.innerText = UI.translations[currentLang].msgError || "Error!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-red-500";
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
+    }
+}
+
+async function saveBatteryCapacityToDB() {
+    const input = document.getElementById('input-battery-capacity');
+    const status = document.getElementById('battery-settings-status');
+    const newVal = Number(input.value);
+
+    if (!Number.isFinite(newVal) || newVal < 0.1 || newVal > 100) {
+        alert("Capacity must be between 0.1 and 100 kWh");
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-battery');
+    const originalBtnText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
+        await setDoc(docRef, {
+            battery_capacity_kwh: newVal,
+            updated_at: new Date()
+        }, { merge: true });
+
+        batteryCapacityKwh = newVal;
+        if (latestSupplyReading) UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+
+        status.innerText = UI.translations[currentLang].msgSaved || "Saved!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-green-500";
+        setTimeout(() => status.classList.add('opacity-0'), 3000);
+    } catch (e) {
+        console.error("Error saving battery capacity:", e);
         status.innerText = UI.translations[currentLang].msgError || "Error!";
         status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-red-500";
     } finally {

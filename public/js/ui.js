@@ -3,8 +3,9 @@
 export const translations = {
     ru: {
         subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", 
-        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от батареи", subOff: "Нет сети и резерв не работает", 
-        battery: "Заряд АКБ", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", 
+        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от батареи", subOff: "Нет сети и резерв не работает",
+        runtimeTitle: "Запас АКБ 12В", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт", 
+        battery: "Заряд АКБ 18650", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", 
         lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", 
         gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние 7 дней",
@@ -18,12 +19,15 @@ export const translations = {
         monLogsTitle: "Системные логи", 
         lblReason: "Причина:",
         stPzemTitle: "Интервал счетчика", stPzemDesc: "Как часто отправляются данные напряжения и мощности (сек).", 
-        btnSavePzem: "Сохранить", stPzemInfo: "Изменения вступят в силу после следующего сеанса связи."
+        btnSavePzem: "Сохранить", stPzemInfo: "Изменения вступят в силу после следующего сеанса связи.",
+        stBatteryTitle: "Ёмкость АКБ 12В", stBatteryDesc: "Суммарная ёмкость всех батарей 12 В, кВт·ч.",
+        btnSaveBattery: "Сохранить", stBatteryInfo: "Оценка запаса на главной пересчитывается сразу."
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
-        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від батареї", subOff: "Немає мережі і резерв не працює", 
-        battery: "Заряд АКБ", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", 
+        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від батареї", subOff: "Немає мережі і резерв не працює",
+        runtimeTitle: "Запас АКБ 12В", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт", 
+        battery: "Заряд АКБ 18650", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", 
         lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", 
         gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні 7 днів",
@@ -37,12 +41,15 @@ export const translations = {
         monLogsTitle: "Системні логи", 
         lblReason: "Причина:",
         stPzemTitle: "Інтервал лічильника", stPzemDesc: "Як часто надсилаються дані напруги та потужності (сек).", 
-        btnSavePzem: "Зберегти", stPzemInfo: "Зміни набудуть чинності після наступного сеансу зв'язку."
+        btnSavePzem: "Зберегти", stPzemInfo: "Зміни набудуть чинності після наступного сеансу зв'язку.",
+        stBatteryTitle: "Ємність АКБ 12В", stBatteryDesc: "Сумарна ємність усіх батарей 12 В, кВт·год.",
+        btnSaveBattery: "Зберегти", stBatteryInfo: "Оцінка запасу на головній перераховується одразу."
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
-        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on battery", subOff: "No grid and the backup is off", 
-        battery: "Battery Level", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", 
+        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on battery", subOff: "No grid and the backup is off",
+        runtimeTitle: "12V battery left", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W", 
+        battery: "18650 battery", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", 
         lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", 
         gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last 7 days",
@@ -56,7 +63,9 @@ export const translations = {
         monLogsTitle: "System Logs", 
         lblReason: "Reason:",
         stPzemTitle: "Meter Interval", stPzemDesc: "How often voltage and power data is sent (sec).", 
-        btnSavePzem: "Save", stPzemInfo: "Changes will take effect after the next connection."
+        btnSavePzem: "Save", stPzemInfo: "Changes will take effect after the next connection.",
+        stBatteryTitle: "12V battery capacity", stBatteryDesc: "Total capacity of all 12V batteries, kWh.",
+        btnSaveBattery: "Save", stBatteryInfo: "The home estimate updates immediately."
     }
 };
 
@@ -162,7 +171,7 @@ export function applyLanguage(lang) {
     document.getElementById("lang-select").value = lang;
     
     const ids = {
-        't-subtitle': t.subtitle, 't-battery': t.battery, 't-event': t.event,
+        't-subtitle': t.subtitle, 't-battery': t.battery, 't-reserve-runtime': t.runtimeTitle, 't-event': t.event,
         't-history': t.history, 't-last-on': t.lastOn, 't-last-off': t.lastOff,
         't-graph-title': t.gTitle, 't-stats-title': t.gStatsTitle, 't-data-info': t.dataInfo,
         'm-home': t.mHome, 'm-monitoring': t.mMonitoring, 'm-graphs': t.mGraphs, 
@@ -177,7 +186,11 @@ export function applyLanguage(lang) {
         't-set-pzem-title': t.stPzemTitle,
         't-set-pzem-desc': t.stPzemDesc,
         't-btn-save-pzem': t.btnSavePzem,
-        't-set-pzem-info': t.stPzemInfo
+        't-set-pzem-info': t.stPzemInfo,
+        't-set-battery-title': t.stBatteryTitle,
+        't-set-battery-desc': t.stBatteryDesc,
+        't-btn-save-battery': t.btnSaveBattery,
+        't-set-battery-info': t.stBatteryInfo
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
@@ -194,6 +207,7 @@ function updateThemeIcon() {
     }
 }
 
+export const RESERVE_BATTERY_WH = 12 * 100;
 export const SUPPLY_IDLE_WATTS = 25;
 export const SUPPLY_VOLTAGE_MIN = 80;
 export const METER_MAX_VOLTAGE = 300;
@@ -259,6 +273,49 @@ export function renderSupplyStatus(reading, currentLang) {
     statusIconBg.className = `relative inline-flex rounded-full h-16 w-16 ${iconClass} items-center justify-center text-white text-2xl shadow-lg`;
     statusIconBg.innerHTML = `<i class="fas ${icon}"></i>`;
     statusPing.classList.toggle("hidden", hidePing);
+}
+
+function formatRuntime(hours) {
+    const safe = Math.max(0, hours);
+    let h = Math.floor(safe);
+    let m = Math.round((safe - h) * 60);
+    if (m === 60) {
+        h += 1;
+        m = 0;
+    }
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+export function renderReserveRuntime(reading, todayStartEnergy, currentLang, capacityKwh = 1.2) {
+    const card = document.getElementById("reserve-runtime");
+    if (!card) return;
+    const t = translations[currentLang];
+    const capacity = Number(capacityKwh);
+    const usableKwh = Number.isFinite(capacity) && capacity > 0 ? capacity : 1.2;
+    if (!reading || classifySupply(reading) !== "reserve") {
+        card.classList.add("hidden");
+        return;
+    }
+
+    card.classList.remove("hidden");
+    const valueEl = document.getElementById("reserve-runtime-value");
+    const noteEl = document.getElementById("reserve-runtime-note");
+    const power = Number(reading.power);
+    const energy = Number(reading.energy);
+    const start = Number(todayStartEnergy);
+    const usedWh = Number.isFinite(energy) && Number.isFinite(start) ? Math.max(0, (energy - start) * 1000) : null;
+    if (usedWh === null || !Number.isFinite(power) || power <= 0) {
+        valueEl.innerText = "--:--";
+        noteEl.innerText = t.runtimeWait;
+        return;
+    }
+
+    const remainingWh = Math.max(0, usableKwh * 1000 - usedWh);
+    valueEl.innerText = `≈ ${formatRuntime(remainingWh / power)}`;
+    noteEl.innerText = t.runtimeNote
+        .replace("{today}", (usedWh / 1000).toFixed(3))
+        .replace("{capacity}", usableKwh.toFixed(3))
+        .replace("{power}", power.toFixed(0));
 }
 
 export function renderHome(docs, currentLang) {
