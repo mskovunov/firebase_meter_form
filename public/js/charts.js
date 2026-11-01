@@ -1,4 +1,5 @@
 // js/charts.js
+import { classifySupply, filterMeterSeries } from './ui.js?v=6';
 
 try {
     if (typeof ChartDataLabels !== 'undefined') {
@@ -108,10 +109,11 @@ export function updateMainChart(docs) {
 
 // === 2. STATS CHART ===
 export function updateStatsChart(docs, translations, currentLang) {
-    const stats = calculateDailyStats(docs);
+    const stats = calculateSupplyStats(docs);
     const labels = Object.keys(stats).sort((a, b) => stats[a].sort - stats[b].sort);
 
-    const dataOn = labels.map(day => stats[day].on.toFixed(2)); 
+    const dataOn = labels.map(day => stats[day].grid.toFixed(2));
+    const dataReserve = labels.map(day => stats[day].reserve.toFixed(2));
     const dataOff = labels.map(day => -stats[day].off.toFixed(2));
     const isDark = document.documentElement.classList.contains('dark');
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
@@ -131,6 +133,7 @@ export function updateStatsChart(docs, translations, currentLang) {
     };
 
     const datasets = [
+        { label: t.statReserve, data: dataReserve, backgroundColor: '#F59E0B', borderRadius: 2, datalabels: { color: '#1f2937' } },
         { label: t.statOn, data: dataOn, backgroundColor: '#10B981', borderRadius: 2 },
         { label: t.statOff, data: dataOff, backgroundColor: '#EF4444', borderRadius: 2 }
     ];
@@ -173,54 +176,53 @@ export function updateStatsChart(docs, translations, currentLang) {
     }
 }
 
-function calculateDailyStats(docs) {
-    const sortedDocs = [...docs].sort((a, b) => a.timestamp.toDate() - b.timestamp.toDate());
+function calculateSupplyStats(docs) {
+    const readings = filterMeterSeries(
+        [...docs]
+            .filter(item => Number.isFinite(Number(item.timestamp_unix)))
+            .sort((a, b) => Number(a.timestamp_unix) - Number(b.timestamp_unix))
+    );
     const stats = {};
-    if (sortedDocs.length === 0) return stats;
+    if (readings.length === 0) return stats;
 
-    let currentState = sortedDocs[0].value;
-    let lastTime = sortedDocs[0].timestamp.toDate();
+    let currentState = classifySupply(readings[0]);
+    let lastTime = new Date(Number(readings[0].timestamp_unix) * 1000);
     const now = new Date();
     if (lastTime > now) lastTime = now;
 
     const addStats = (date, hours, state) => {
+        if (hours <= 0) return;
         const dayKey = formatDateDDMM(date);
         if (!stats[dayKey]) {
             const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-            stats[dayKey] = { on: 0, off: 0, sort: dayStart.getTime() };
+            stats[dayKey] = { grid: 0, reserve: 0, off: 0, sort: dayStart.getTime() };
         }
-        if (state === 1) stats[dayKey].on += hours; else stats[dayKey].off += hours;
+        if (state === 'grid') stats[dayKey].grid += hours;
+        else if (state === 'reserve') stats[dayKey].reserve += hours;
+        else stats[dayKey].off += hours;
     };
 
-    for (let i = 1; i < sortedDocs.length; i++) {
-        let currentTime = sortedDocs[i].timestamp.toDate();
+    const advance = (from, to, state) => {
+        let tempTime = new Date(from);
+        const nextDayStart = new Date(tempTime);
+        nextDayStart.setHours(24, 0, 0, 0);
+        while (to >= nextDayStart) {
+            addStats(tempTime, (nextDayStart - tempTime) / (1000 * 60 * 60), state);
+            tempTime = new Date(nextDayStart);
+            nextDayStart.setDate(nextDayStart.getDate() + 1);
+        }
+        addStats(tempTime, (to - tempTime) / (1000 * 60 * 60), state);
+    };
+
+    for (let i = 1; i < readings.length; i++) {
+        let currentTime = new Date(Number(readings[i].timestamp_unix) * 1000);
         if (currentTime > now) currentTime = now;
         if (currentTime < lastTime) continue;
-
-        let tempTime = new Date(lastTime);
-        const nextDayStart = new Date(tempTime); nextDayStart.setHours(24, 0, 0, 0);
-
-        while (currentTime >= nextDayStart) {
-            const hoursToEndOfDay = (nextDayStart - tempTime) / (1000 * 60 * 60);
-            addStats(tempTime, hoursToEndOfDay, currentState);
-            tempTime = new Date(nextDayStart); nextDayStart.setDate(nextDayStart.getDate() + 1);
-        }
-        const hoursDiff = (currentTime - tempTime) / (1000 * 60 * 60);
-        addStats(tempTime, hoursDiff, currentState);
+        advance(lastTime, currentTime, currentState);
         lastTime = currentTime;
-        if (sortedDocs[i].device === "PowerLost") currentState = 0; else if (sortedDocs[i].device === "PowerRestored") currentState = 1;
+        currentState = classifySupply(readings[i]);
     }
-    let tempTime = new Date(lastTime);
-    const nextDayStart = new Date(tempTime); nextDayStart.setHours(24, 0, 0, 0);
-    while (now >= nextDayStart) {
-        const hoursToEndOfDay = (nextDayStart - tempTime) / (1000 * 60 * 60);
-        addStats(tempTime, hoursToEndOfDay, currentState);
-        tempTime = new Date(nextDayStart); nextDayStart.setDate(nextDayStart.getDate() + 1);
-    }
-    if (now > tempTime) {
-        const hoursDiff = (now - tempTime) / (1000 * 60 * 60);
-        addStats(tempTime, hoursDiff, currentState);
-    }
+    if (now > lastTime) advance(lastTime, now, currentState);
     return stats;
 }
 

@@ -3,10 +3,10 @@
 export const translations = {
     ru: {
         subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", 
-        powerOn: "Питание ЕСТЬ", powerOff: "Питание ОТСУТСТВУЕТ", subOn: "Работа от сети 220В", subOff: "Работа от аккумулятора", 
+        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от батареи", subOff: "Нет сети и резерв не работает", 
         battery: "Заряд АКБ", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", 
         lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", 
-        gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Есть свет", statOff: "Нет света", hShort: "ч", mShort: "мин", 
+        gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние 7 дней",
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
         btnDay: "День", btnWeek: "Неделя", btnMonth: "Месяц",
@@ -22,10 +22,10 @@ export const translations = {
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
-        powerOn: "Світло Є", powerOff: "Світла НЕМАЄ", subOn: "Робота від мережі 220В", subOff: "Робота від акумулятора", 
+        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від батареї", subOff: "Немає мережі і резерв не працює", 
         battery: "Заряд АКБ", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", 
         lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", 
-        gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Є світло", statOff: "Немає світла", hShort: "год", mShort: "хв", 
+        gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні 7 днів",
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
         btnDay: "День", btnWeek: "Тиждень", btnMonth: "Місяць",
@@ -41,10 +41,10 @@ export const translations = {
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
-        powerOn: "Power ON", powerOff: "Power OFF", subOn: "Main grid 220V active", subOff: "Running on battery", 
+        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on battery", subOff: "No grid and the backup is off", 
         battery: "Battery Level", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", 
         lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", 
-        gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Power ON", statOff: "Power OFF", hShort: "h", mShort: "m", 
+        gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last 7 days",
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
         btnDay: "Day", btnWeek: "Week", btnMonth: "Month",
@@ -194,35 +194,78 @@ function updateThemeIcon() {
     }
 }
 
-export function renderHome(docs, currentLang) {
+export const SUPPLY_IDLE_WATTS = 25;
+export const SUPPLY_VOLTAGE_MIN = 80;
+export const METER_MAX_VOLTAGE = 300;
+export const METER_MAX_CURRENT = 100;
+export const METER_MAX_POWER = 25000;
+export const METER_MAX_ENERGY = 1000000;
+export const METER_MAX_ENERGY_STEP = 200;
+
+export function isPlausibleMeterReading(reading) {
+    const voltage = Number(reading?.voltage);
+    const current = Number(reading?.current);
+    const power = Number(reading?.power);
+    const energy = Number(reading?.energy);
+    if (!Number.isFinite(voltage) || voltage < 0 || voltage > METER_MAX_VOLTAGE) return false;
+    if (!Number.isFinite(current) || current < 0 || current > METER_MAX_CURRENT) return false;
+    if (!Number.isFinite(power) || power < 0 || power > METER_MAX_POWER) return false;
+    if (!Number.isFinite(energy) || energy < 0 || energy > METER_MAX_ENERGY) return false;
+    if (voltage >= SUPPLY_VOLTAGE_MIN && current >= 0.05 && power > voltage * current * 1.5 + 30) return false;
+    return true;
+}
+
+export function filterMeterSeries(readings) {
+    const kept = [];
+    readings.forEach(reading => {
+        if (!isPlausibleMeterReading(reading)) return;
+        const energy = Number(reading.energy);
+        const previous = kept.length ? Number(kept[kept.length - 1].energy) : null;
+        if (previous !== null && energy - previous > METER_MAX_ENERGY_STEP) return;
+        kept.push(reading);
+    });
+    return kept;
+}
+
+export function classifySupply(reading) {
+    const voltage = Number(reading?.voltage);
+    const power = Number(reading?.power);
+    if (!Number.isFinite(voltage) || voltage < SUPPLY_VOLTAGE_MIN) return "blackout";
+    if (Number.isFinite(power) && power > SUPPLY_IDLE_WATTS) return "reserve";
+    return "grid";
+}
+
+export function renderSupplyStatus(reading, currentLang) {
     const t = translations[currentLang];
-    const latest = docs[0]; 
-    const isPowerOn = latest.value === 1;
-    const batLevel = latest.battery || 0;
-    const eventType = latest.device || "Event";
-    
-    // Status Card
+    const mode = classifySupply(reading);
+    const voltage = Number(reading?.voltage);
+    const power = Number(reading?.power);
+    const measurement = `${Number.isFinite(voltage) ? voltage.toFixed(0) : "--"} V · ${Number.isFinite(power) ? power.toFixed(0) : "--"} W`;
     const statusCard = document.getElementById("status-card");
     const statusText = document.getElementById("status-text");
     const statusSubtext = document.getElementById("status-subtext");
     const statusIconBg = document.getElementById("status-icon-bg");
     const statusPing = document.getElementById("status-ping");
+    const modes = {
+        grid: ["bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800", "text-green-700 dark:text-green-400", "bg-green-500 shadow-green-500/50", "fa-bolt", t.powerOn, t.subOn, false],
+        reserve: ["bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800", "text-amber-700 dark:text-amber-400", "bg-amber-500 shadow-amber-500/50", "fa-car-battery", t.powerReserve, t.subReserve, true],
+        blackout: ["bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800", "text-red-700 dark:text-red-400", "bg-red-500 shadow-red-500/50", "fa-plug-circle-xmark", t.powerOff, t.subOff, true]
+    };
+    const [cardClass, textClass, iconClass, icon, title, subtitle, hidePing] = modes[mode];
+    statusCard.className = `${cardClass} rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col`;
+    statusText.className = `text-2xl font-bold ${textClass}`;
+    statusText.innerText = title;
+    statusSubtext.innerText = `${subtitle} · ${measurement}`;
+    statusIconBg.className = `relative inline-flex rounded-full h-16 w-16 ${iconClass} items-center justify-center text-white text-2xl shadow-lg`;
+    statusIconBg.innerHTML = `<i class="fas ${icon}"></i>`;
+    statusPing.classList.toggle("hidden", hidePing);
+}
 
-    if (isPowerOn) {
-        statusCard.className = "bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col";
-        statusText.className = "text-2xl font-bold text-green-700 dark:text-green-400"; 
-        statusText.innerText = t.powerOn; statusSubtext.innerText = t.subOn;
-        statusIconBg.className = "relative inline-flex rounded-full h-16 w-16 bg-green-500 items-center justify-center text-white text-2xl shadow-lg shadow-green-500/50";
-        statusIconBg.innerHTML = '<i class="fas fa-bolt"></i>'; 
-        statusPing.classList.remove("hidden");
-    } else {
-        statusCard.className = "bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col";
-        statusText.className = "text-2xl font-bold text-red-700 dark:text-red-400"; 
-        statusText.innerText = t.powerOff; statusSubtext.innerText = t.subOff;
-        statusIconBg.className = "relative inline-flex rounded-full h-16 w-16 bg-red-500 items-center justify-center text-white text-2xl shadow-lg shadow-red-500/50";
-        statusIconBg.innerHTML = '<i class="fas fa-plug-circle-xmark"></i>'; 
-        statusPing.classList.add("hidden");
-    }
+export function renderHome(docs, currentLang) {
+    const t = translations[currentLang];
+    const latest = docs[0]; 
+    const batLevel = latest.battery || 0;
+    const eventType = latest.device || "Event";
 
     // Battery
     const batteryBar = document.getElementById("battery-bar");

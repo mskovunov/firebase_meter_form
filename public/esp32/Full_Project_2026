@@ -95,6 +95,33 @@
     void printBootDiagnostics();
     void tickLed();
     void maintainWifi();
+    bool pzemSamplePlausible(double voltage, double current, double power, double energy);
+
+    bool hasAcceptedPzemEnergy = false;
+    double lastAcceptedPzemEnergy = 0;
+
+    bool pzemSamplePlausible(double voltage, double current, double power, double energy)
+    {
+        if (voltage < 0 || voltage > 300.0)
+            return false;
+        if (current < 0 || current > 100.0)
+            return false;
+        if (power < 0 || power > 25000.0)
+            return false;
+        if (energy < 0 || energy > 1000000.0)
+            return false;
+        if (voltage >= 80.0 && current >= 0.05 && power > voltage * current * 1.5 + 30.0)
+            return false;
+        if (hasAcceptedPzemEnergy)
+        {
+            double delta = energy - lastAcceptedPzemEnergy;
+            if (delta > 200.0)
+                return false;
+            if (delta < -1.0 && energy > 1.0)
+                return false;
+        }
+        return true;
+    }
 
     void tickLed()
     {
@@ -466,6 +493,16 @@
             double cleanPower = round(power * 10) / 10.0;
             double cleanEnergy = round(energy * 1000) / 1000.0;
 
+            if (!pzemSamplePlausible(cleanVoltage, cleanCurrent, cleanPower, cleanEnergy))
+            {
+                SerialMon.printf("PZEM rejected: %.1f V, %.3f A, %.1f W, %.3f kWh\n",
+                                 cleanVoltage, cleanCurrent, cleanPower, cleanEnergy);
+            }
+            else
+            {
+            lastAcceptedPzemEnergy = cleanEnergy;
+            hasAcceptedPzemEnergy = true;
+
             String timeStr = getCurrentTime();
             SerialMon.println("--------------------------------------");
             SerialMon.printf("[%s] PZEM READINGS (Int: %ds):\n", timeStr.c_str(), sendIntervalPzem / 1000);
@@ -488,6 +525,7 @@
                 SerialMon.println(">>> FIREBASE SUCCESS.");
             else
                 SerialMon.printf(">>> FIREBASE ERROR: %s\n", fbdo.errorReason().c_str());
+            }
         }
 
         if (millis() - lastKeepAlive > sendInterval)

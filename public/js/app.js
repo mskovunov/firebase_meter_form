@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=4';
-import * as Charts from './charts.js?v=5';
+import * as UI from './ui.js?v=6';
+import * as Charts from './charts.js?v=7';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -17,6 +17,9 @@ let activeMonMode = 'power'; // Запоминаем текущий режим (
 let logsUnsubscribe = null; // НОВА ЗМІННА  для відписки від логів
 let graphDocs = [];
 let graphsUnsubscribe = null;
+let meterDocs = [];
+let meterUnsubscribe = null;
+let latestSupplyReading = null;
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -41,6 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
     Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
+    startSupplyListener();
     
     window.setMonChartMode = (mode) => {
         handleChartModeChange(mode);
@@ -152,14 +156,13 @@ async function fetchEnergyAt(boundary) {
     );
     const snapshot = await getDocs(qBoundary);
     const valid = snapshot.docs
-        .map(item => {
-            const data = item.data();
-            return {
-                energy: Number(data.energy),
-                timestampUnix: Number(data.timestamp_unix)
-            };
-        })
-        .find(item => Number.isFinite(item.energy) && item.energy >= 0.1 && Number.isFinite(item.timestampUnix));
+        .map(item => item.data())
+        .filter(data => UI.isPlausibleMeterReading(data) && Number(data.energy) >= 0.1)
+        .map(data => ({
+            energy: Number(data.energy),
+            timestampUnix: Number(data.timestamp_unix)
+        }))
+        .find(item => Number.isFinite(item.timestampUnix));
     return valid ?? null;
 }
 
@@ -223,6 +226,16 @@ async function handleEnergyRangeChange(range) {
     }
 }
 
+function startSupplyListener() {
+    const qSupply = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(10));
+    onSnapshot(qSupply, (snapshot) => {
+        const reading = snapshot.docs.map(item => item.data()).find(UI.isPlausibleMeterReading);
+        if (!reading) return;
+        latestSupplyReading = reading;
+        UI.renderSupplyStatus(latestSupplyReading, currentLang);
+    }, (err) => console.error("Supply listener error:", err));
+}
+
 function startMainListener() {
     const q = query(collection(db, "esp32_data"), orderBy("timestamp", "desc"), limit(1200));
     onSnapshot(q, (snapshot) => {
@@ -243,10 +256,10 @@ function sevenDaysStart() {
 function refreshGraphs() {
     const startMs = sevenDaysStart().getTime();
     const docs = graphDocs.filter(item => item.timestamp?.toDate && item.timestamp.toDate().getTime() >= startMs);
-    if (!docs.length) return;
+    if (!docs.length && !meterDocs.length) return;
     Charts.updateChartConfig(UI.translations[currentLang]);
-    Charts.updateMainChart(docs);
-    Charts.updateStatsChart(docs, UI.translations, currentLang);
+    if (docs.length) Charts.updateMainChart(docs);
+    if (meterDocs.length) Charts.updateStatsChart(meterDocs, UI.translations, currentLang);
     const info = document.getElementById('t-data-info');
     if (info) info.innerText = UI.translations[currentLang].dataInfo;
 }
@@ -271,6 +284,17 @@ function startGraphsListener() {
         console.error("Graphs listener error:", err);
         if (info) info.innerText = UI.translations[currentLang].error;
     });
+
+    const startUnix = Math.floor(sevenDaysStart().getTime() / 1000);
+    const qMeter = query(
+        collection(db, "meter_readings"),
+        where("timestamp_unix", ">=", startUnix),
+        orderBy("timestamp_unix", "asc")
+    );
+    meterUnsubscribe = onSnapshot(qMeter, (snapshot) => {
+        meterDocs = snapshot.docs.map(item => item.data());
+        refreshGraphs();
+    }, (err) => console.error("Meter stats listener error:", err));
 }
 
 function refreshData() {
@@ -279,7 +303,8 @@ function refreshData() {
     if(currentDocs.length > 0) {
         UI.renderHome(currentDocs, currentLang);
     }
-    if (graphDocs.length > 0) refreshGraphs();
+    if (latestSupplyReading) UI.renderSupplyStatus(latestSupplyReading, currentLang);
+    if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
 }
 
 // === MONITORING LOGIC ===
@@ -299,7 +324,7 @@ async function fetchTodayStart() {
     const qDaily = query(collection(db, "meter_readings"), where("created_at", ">=", startOfDayStr), orderBy("created_at", "asc"), limit(200));
     try {
        const snap = await getDocs(qDaily);
-       const firstValid = snap.docs.map(doc => doc.data()).find(d => Number(d.energy) >= 0.1);
+       const firstValid = snap.docs.map(doc => doc.data()).find(d => UI.isPlausibleMeterReading(d) && Number(d.energy) >= 0.1);
        todayStartEnergy = firstValid ? Number(firstValid.energy) : null;
        refreshMonitoringCards();
     } catch(e) { console.log("Daily fetch error", e); }
@@ -317,13 +342,13 @@ function startMonitoringListener() {
         }
         
         // ФИЛЬТРУЕМ ЖИВЫЕ ДАННЫЕ
-        let docs = snapshot.docs.map(doc => doc.data()).filter(d => d.energy >= 0.1);
+        let docs = UI.filterMeterSeries(snapshot.docs.map(doc => doc.data()).reverse()).filter(d => d.energy >= 0.1);
         
         // Если после фильтрации массив оказался пустым (пришли одни нули) - ничего не делаем
         if (docs.length === 0) return;
         
         // Оновлюємо кеш живих даних
-        monDataCache = docs.reverse();
+        monDataCache = docs;
         refreshMonitoringCards();
         if (activeMonMode === 'energy') {
             const cached = energyRangeCache.get(activeEnergyRange);
