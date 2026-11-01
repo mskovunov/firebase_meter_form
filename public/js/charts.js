@@ -32,10 +32,51 @@ function formatDateDDMM(date) {
 }
 
 // === 1. MAIN CHART (BATTERY) ===
+function downsampleBattery(docs) {
+    const buckets = new Map();
+    docs.forEach(item => {
+        if (!item.timestamp?.toDate) return;
+        const date = item.timestamp.toDate();
+        const bucket = new Date(date);
+        bucket.setMinutes(Math.floor(date.getMinutes() / 30) * 30, 0, 0);
+        buckets.set(bucket.getTime(), item.battery || 0);
+    });
+    return [...buckets.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([time, battery]) => {
+            const date = new Date(time);
+            const pad = value => String(value).padStart(2, '0');
+            return {
+                label: `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`,
+                battery
+            };
+        });
+}
+
+function batteryRange(values) {
+    if (!values.length) return { min: 0, max: 100 };
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const pad = Math.max(5, (max - min) * 0.25);
+    let axisMin = Math.max(0, Math.floor(min - pad));
+    let axisMax = Math.min(100, Math.ceil(max + pad));
+    if (axisMax - axisMin < 5) axisMin = Math.max(0, axisMax - 5);
+    return { min: axisMin, max: axisMax };
+}
+
+function dayTick(value) {
+    const label = this.getLabelForValue(value);
+    const day = label.slice(0, 5);
+    if (value === 0) return day;
+    const previous = this.getLabelForValue(value - 1);
+    return previous.slice(0, 5) === day ? null : day;
+}
+
 export function updateMainChart(docs) {
-    const reversedDocs = [...docs].reverse();
-    const labels = reversedDocs.map(d => (d.timestamp && d.timestamp.toDate) ? d.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '');
-    const dataPoints = reversedDocs.map(d => d.battery || 0);
+    const sampled = downsampleBattery(docs);
+    const labels = sampled.map(item => item.label);
+    const dataPoints = sampled.map(item => item.battery);
+    const range = batteryRange(dataPoints);
     const isDark = document.documentElement.classList.contains('dark');
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
     const textColor = isDark ? '#e5e7eb' : '#374151';
@@ -48,13 +89,19 @@ export function updateMainChart(docs) {
         chartInstance.options.scales.x.grid.color = gridColor;
         chartInstance.options.scales.y.grid.color = gridColor;
         chartInstance.options.scales.x.ticks.color = textColor;
+        chartInstance.options.scales.x.ticks.callback = dayTick;
+        chartInstance.options.scales.x.ticks.autoSkip = false;
+        chartInstance.options.scales.x.ticks.maxRotation = 0;
         chartInstance.options.scales.y.ticks.color = textColor;
+        chartInstance.options.scales.y.min = range.min;
+        chartInstance.options.scales.y.max = range.max;
         chartInstance.update();
+        chartInstance.resize();
     } else {
         chartInstance = new Chart(ctx, {
             type: 'line',
-            data: { labels: labels, datasets: [{ label: 'Battery %', data: dataPoints, borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 0 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { beginAtZero: true, max: 100, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor, maxTicksLimit: 6 } } } }
+            data: { labels: labels, datasets: [{ label: 'Battery %', data: dataPoints, borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { min: range.min, max: range.max, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor, autoSkip: false, maxRotation: 0, callback: dayTick } } } }
         });
     }
 }
@@ -62,10 +109,7 @@ export function updateMainChart(docs) {
 // === 2. STATS CHART ===
 export function updateStatsChart(docs, translations, currentLang) {
     const stats = calculateDailyStats(docs);
-    const labels = Object.keys(stats).sort((a, b) => {
-        const [d1, m1] = a.split('.'); const [d2, m2] = b.split('.');
-        if (m1 !== m2) return m1 - m2; return d1 - d2;
-    });
+    const labels = Object.keys(stats).sort((a, b) => stats[a].sort - stats[b].sort);
 
     const dataOn = labels.map(day => stats[day].on.toFixed(2)); 
     const dataOff = labels.map(day => -stats[day].off.toFixed(2));
@@ -76,12 +120,14 @@ export function updateStatsChart(docs, translations, currentLang) {
     const ctx = document.getElementById('statsChart').getContext('2d');
 
     const formatTime = (value) => {
-        const val = Math.abs(value);
-        const h = Math.floor(val);
-        const m = Math.round((val - h) * 60);
-        if (h === 0) return `${m}${t.mShort}`; 
-        if (m === 0) return `${h}${t.hShort}`; 
-        return `${h}${t.hShort} ${m}${t.mShort}`; 
+        const val = Math.abs(Number(value) || 0);
+        let h = Math.floor(val);
+        let m = Math.round((val - h) * 60);
+        if (m === 60) {
+            h += 1;
+            m = 0;
+        }
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
 
     const datasets = [
@@ -96,6 +142,7 @@ export function updateStatsChart(docs, translations, currentLang) {
         statsChartInstance.options.scales.y.ticks.color = textColor; 
         statsChartInstance.options.scales.x.ticks.color = textColor;
         statsChartInstance.update();
+        statsChartInstance.resize();
     } else {
         statsChartInstance = new Chart(ctx, {
             type: 'bar',
@@ -138,7 +185,10 @@ function calculateDailyStats(docs) {
 
     const addStats = (date, hours, state) => {
         const dayKey = formatDateDDMM(date);
-        if (!stats[dayKey]) stats[dayKey] = { on: 0, off: 0 };
+        if (!stats[dayKey]) {
+            const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            stats[dayKey] = { on: 0, off: 0, sort: dayStart.getTime() };
+        }
         if (state === 1) stats[dayKey].on += hours; else stats[dayKey].off += hours;
     };
 

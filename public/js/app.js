@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=3';
-import * as Charts from './charts.js?v=3';
+import * as UI from './ui.js?v=4';
+import * as Charts from './charts.js?v=5';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -15,6 +15,8 @@ let energyLoadRequest = 0;
 const energyRangeCache = new Map();
 let activeMonMode = 'power'; // Запоминаем текущий режим (по умолчанию Power)
 let logsUnsubscribe = null; // НОВА ЗМІННА  для відписки від логів
+let graphDocs = [];
+let graphsUnsubscribe = null;
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -71,6 +73,10 @@ function handleViewChange(viewName) {
     // 3. ЯКЩО ВІДКРИЛИ НАЛАШТУВАННЯ - ВАНТАЖИМО ДАНІ
     if (viewName === 'settings') { 
         loadSettingsFromDB();
+    }
+
+    if (viewName === 'graphs') {
+        startGraphsListener();
     }
 }
 
@@ -227,14 +233,53 @@ function startMainListener() {
     }, (err) => console.error("Main Listener Error:", err));
 }
 
+function sevenDaysStart() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - 6);
+    return start;
+}
+
+function refreshGraphs() {
+    const startMs = sevenDaysStart().getTime();
+    const docs = graphDocs.filter(item => item.timestamp?.toDate && item.timestamp.toDate().getTime() >= startMs);
+    if (!docs.length) return;
+    Charts.updateChartConfig(UI.translations[currentLang]);
+    Charts.updateMainChart(docs);
+    Charts.updateStatsChart(docs, UI.translations, currentLang);
+    const info = document.getElementById('t-data-info');
+    if (info) info.innerText = UI.translations[currentLang].dataInfo;
+}
+
+function startGraphsListener() {
+    if (graphsUnsubscribe) {
+        refreshGraphs();
+        return;
+    }
+
+    const info = document.getElementById('t-data-info');
+    if (info) info.innerText = UI.translations[currentLang].loading;
+    const qGraphs = query(
+        collection(db, "esp32_data"),
+        where("timestamp", ">=", sevenDaysStart()),
+        orderBy("timestamp", "asc")
+    );
+    graphsUnsubscribe = onSnapshot(qGraphs, (snapshot) => {
+        graphDocs = snapshot.docs.map(item => item.data());
+        refreshGraphs();
+    }, (err) => {
+        console.error("Graphs listener error:", err);
+        if (info) info.innerText = UI.translations[currentLang].error;
+    });
+}
+
 function refreshData() {
     // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
     Charts.updateChartConfig(UI.translations[currentLang]);
     if(currentDocs.length > 0) {
         UI.renderHome(currentDocs, currentLang);
-        Charts.updateMainChart(currentDocs);
-        Charts.updateStatsChart(currentDocs, UI.translations, currentLang);
     }
+    if (graphDocs.length > 0) refreshGraphs();
 }
 
 // === MONITORING LOGIC ===
