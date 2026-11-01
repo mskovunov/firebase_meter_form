@@ -10,8 +10,9 @@ let currentLang = localStorage.getItem('lang') || 'uk';
 let todayStartEnergy = null;
 let monUnsubscribe = null;
 let monDataCache = [];
-let historyCache = [];
-let isHistoryLoaded = false;
+let activeEnergyRange = 'day';
+let energyLoadRequest = 0;
+const energyRangeCache = new Map();
 let activeMonMode = 'power'; // Запоминаем текущий режим (по умолчанию Power)
 let logsUnsubscribe = null; // НОВА ЗМІННА  для відписки від логів
 
@@ -44,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.changeEnergyRange = (range) => {
-        Charts.changeEnergyRange(range);
+        handleEnergyRangeChange(range);
     };
 
     // 2. Експортуємо функції збереження у вікно
@@ -77,12 +78,8 @@ async function handleChartModeChange(mode) {
     activeMonMode = mode; // Обновляем текущий режим
 
     if (mode === 'energy') {
-        if (!isHistoryLoaded) {
-            document.getElementById('mon-status-text').innerText = "Завантаження історії...";
-            await loadHistoryData();
-        }
-        Charts.setMonChartMode(mode, historyCache, todayStartEnergy);
-        document.getElementById('mon-status-text').innerText = `Історія: ${historyCache.length} записів`;
+        Charts.setMonChartMode(mode, monDataCache, todayStartEnergy);
+        await handleEnergyRangeChange(activeEnergyRange);
     } else {
         // Для живых графиков используем кэш, если он есть
         Charts.setMonChartMode(mode, monDataCache, todayStartEnergy);
@@ -90,19 +87,133 @@ async function handleChartModeChange(mode) {
     }
 }
 
-async function loadHistoryData() {
-    try {
-        const qHistory = query(collection(db, "meter_readings"), orderBy("created_at", "desc"), limit(3000));
-        const snapshot = await getDocs(qHistory);
-        
-        if (!snapshot.empty) {
-            // ФИЛЬТРУЕМ: Оставляем только записи с адекватной энергией
-            historyCache = snapshot.docs.map(doc => doc.data()).filter(d => d.energy >= 0.1);
-            isHistoryLoaded = true;
-            console.log("History loaded:", historyCache.length);
+function getEnergyPeriods(range, now = new Date()) {
+    const periods = [];
+    const pad = value => String(value).padStart(2, '0');
+
+    if (range === 'day') {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        for (let offset = 6; offset >= 0; offset--) {
+            const start = new Date(today);
+            start.setDate(start.getDate() - offset);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 1);
+            periods.push({
+                start,
+                end: end > now ? now : end,
+                label: `${pad(start.getDate())}.${pad(start.getMonth() + 1)}`
+            });
         }
-    } catch (e) {
-        console.error("Error loading history:", e);
+    } else if (range === 'week') {
+        const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const day = currentMonday.getDay() || 7;
+        currentMonday.setDate(currentMonday.getDate() - day + 1);
+
+        for (let offset = 7; offset >= 0; offset--) {
+            const start = new Date(currentMonday);
+            start.setDate(start.getDate() - offset * 7);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 7);
+            periods.push({
+                start,
+                end: end > now ? now : end,
+                label: `${pad(start.getDate())}.${pad(start.getMonth() + 1)}`
+            });
+        }
+    } else if (range === 'month') {
+        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        for (let offset = 11; offset >= 0; offset--) {
+            const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - offset, 1);
+            const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+            periods.push({
+                start,
+                end: end > now ? now : end,
+                label: `${pad(start.getMonth() + 1)}.${String(start.getFullYear()).slice(-2)}`
+            });
+        }
+    }
+
+    return periods;
+}
+
+async function fetchEnergyAt(boundary) {
+    const unix = Math.floor(boundary.getTime() / 1000);
+    const qBoundary = query(
+        collection(db, "meter_readings"),
+        where("timestamp_unix", "<=", unix),
+        orderBy("timestamp_unix", "desc"),
+        limit(5)
+    );
+    const snapshot = await getDocs(qBoundary);
+    const valid = snapshot.docs
+        .map(item => {
+            const data = item.data();
+            return {
+                energy: Number(data.energy),
+                timestampUnix: Number(data.timestamp_unix)
+            };
+        })
+        .find(item => Number.isFinite(item.energy) && item.energy >= 0.1 && Number.isFinite(item.timestampUnix));
+    return valid ?? null;
+}
+
+async function loadEnergyRange(range) {
+    const periods = getEnergyPeriods(range);
+    const boundaries = new Map();
+
+    periods.forEach(period => {
+        boundaries.set(period.start.getTime(), period.start);
+        boundaries.set(period.end.getTime(), period.end);
+    });
+
+    const energyByBoundary = new Map();
+    await Promise.all([...boundaries.entries()].map(async ([key, boundary]) => {
+        energyByBoundary.set(key, await fetchEnergyAt(boundary));
+    }));
+
+    return periods.map(period => {
+        const startReading = energyByBoundary.get(period.start.getTime());
+        const endReading = energyByBoundary.get(period.end.getTime());
+        const startEnergy = startReading?.energy ?? null;
+        const endEnergy = endReading?.energy ?? null;
+        const periodStartUnix = Math.floor(period.start.getTime() / 1000);
+        const hasReadingInsidePeriod = endReading !== null && endReading.timestampUnix > periodStartUnix;
+        const valid = hasReadingInsidePeriod && startEnergy !== null && endEnergy !== null && endEnergy >= startEnergy;
+        return {
+            label: period.label,
+            value: valid ? Number((endEnergy - startEnergy).toFixed(3)) : null,
+            startEnergy,
+            endEnergy
+        };
+    });
+}
+
+async function handleEnergyRangeChange(range) {
+    if (!['day', 'week', 'month'].includes(range)) return;
+
+    const requestId = ++energyLoadRequest;
+    activeEnergyRange = range;
+    Charts.changeEnergyRange(range);
+
+    const cached = energyRangeCache.get(range);
+    if (cached) {
+        Charts.setEnergyData(range, cached);
+        document.getElementById('mon-status-text').innerText = `Періодів: ${cached.length}`;
+        return;
+    }
+
+    document.getElementById('mon-status-text').innerText = "Завантаження історії...";
+
+    try {
+        const points = await loadEnergyRange(range);
+        if (requestId !== energyLoadRequest) return;
+        energyRangeCache.set(range, points);
+        Charts.setEnergyData(range, points);
+        document.getElementById('mon-status-text').innerText = `Періодів: ${points.length}`;
+    } catch (error) {
+        if (requestId !== energyLoadRequest) return;
+        console.error("Error loading energy range:", error);
+        document.getElementById('mon-status-text').innerText = "Помилка завантаження історії";
     }
 }
 
@@ -169,7 +280,24 @@ function startMonitoringListener() {
         // Оновлюємо кеш живих даних
         monDataCache = docs.reverse();
         refreshMonitoringCards();
-        if (activeMonMode !== 'energy') {
+        if (activeMonMode === 'energy') {
+            const cached = energyRangeCache.get(activeEnergyRange);
+            const latestEnergy = Number(monDataCache[monDataCache.length - 1]?.energy);
+            if (cached && Number.isFinite(latestEnergy)) {
+                const updated = cached.map((point, index) => {
+                    if (index !== cached.length - 1 || point.startEnergy === null || latestEnergy < point.startEnergy) {
+                        return point;
+                    }
+                    return {
+                        ...point,
+                        endEnergy: latestEnergy,
+                        value: Number((latestEnergy - point.startEnergy).toFixed(3))
+                    };
+                });
+                energyRangeCache.set(activeEnergyRange, updated);
+                Charts.setEnergyData(activeEnergyRange, updated);
+            }
+        } else {
             document.getElementById('mon-status-text').innerText = `Оновлено: ${new Date().toLocaleTimeString([], { hour12: false })}`;
         }
 

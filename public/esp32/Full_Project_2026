@@ -44,7 +44,8 @@
     #define STATUS_LED 2
 
     #define WDT_TIMEOUT 120
-    #define HEARTBEAT_MS 10000
+    #define HEARTBEAT_LOG_MS 10000
+    #define HEARTBEAT_PERSIST_MS 600000
     #define HTTP_TIMEOUT_MS 15000
     #define FIREBASE_TIMEOUT_MS 15000
 
@@ -75,9 +76,11 @@
     unsigned long sendIntervalPzem = 60000;
     unsigned long sendPzemPrevMillis = 0;
     unsigned long lastHeartbeatMs = 0;
+    unsigned long lastHeartbeatPersistMs = 0;
     unsigned long lastWifiAttemptMs = 0;
     unsigned long mainsChangeMs = 0;
     int lastStableMains = HIGH;
+    int lastPersistedWifiStatus = -1;
 
     int getBatteryPercentage(bool charging, float &outVoltage);
     bool sendSmart(int val, String deviceStatus, int batLevel, float voltage);
@@ -147,12 +150,28 @@
         if (now < 1700000000)
             return;
 
-        prefs.begin("diag", false);
-        prefs.putULong("hb", (uint32_t)now);
-        prefs.putUChar("wifiSt", (uint8_t)WiFi.status());
-        prefs.putInt("rssi", WiFi.RSSI());
-        prefs.end();
-        SerialMon.printf("HB wifi=%d rssi=%d\n", WiFi.status(), WiFi.RSSI());
+        int wifiStatus = WiFi.status();
+        int rssi = WiFi.RSSI();
+        bool statusChanged = (lastPersistedWifiStatus != wifiStatus);
+        bool persistDue = (lastHeartbeatPersistMs == 0) ||
+                          (millis() - lastHeartbeatPersistMs >= HEARTBEAT_PERSIST_MS);
+
+        if (persistDue || statusChanged)
+        {
+            prefs.begin("diag", false);
+            prefs.putULong("hb", (uint32_t)now);
+            prefs.putUChar("wifiSt", (uint8_t)wifiStatus);
+            prefs.putInt("rssi", rssi);
+            prefs.end();
+
+            lastHeartbeatPersistMs = millis();
+            lastPersistedWifiStatus = wifiStatus;
+            SerialMon.printf("HB persisted wifi=%d rssi=%d\n", wifiStatus, rssi);
+        }
+        else
+        {
+            SerialMon.printf("HB wifi=%d rssi=%d (RAM only)\n", wifiStatus, rssi);
+        }
     }
 
     void printBootDiagnostics()
@@ -214,7 +233,8 @@
         char buf[32];
         strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &t);
         SerialMon.printf("Last heartbeat: %s (unix %u)\n", buf, lastHb);
-        SerialMon.println("After NTP: compare this time with now. Gap >> 30s => MCU was DEAD without USB.");
+        SerialMon.printf("Heartbeat is persisted every %lu sec; the gap alone does not prove a power loss.\n",
+                         HEARTBEAT_PERSIST_MS / 1000UL);
     }
 
     bool ensureGsmReady()
@@ -329,8 +349,9 @@
                 if (lastHb > 0 && now > 1700000000)
                 {
                     long gap = (long)now - (long)lastHb;
-                    SerialMon.printf("Heartbeat gap: %ld sec => %s\n", gap,
-                                    gap > 30 ? "MCU was DEAD/RESET while USB was out" : "MCU was ALIVE (USB unplug did not kill it)");
+                    long expectedWindow = (long)(HEARTBEAT_PERSIST_MS / 1000UL) + 60;
+                    SerialMon.printf("Heartbeat gap: %ld sec (%s persisted-heartbeat window)\n", gap,
+                                     gap > expectedWindow ? "outside" : "inside");
                 }
             }
             else
@@ -380,7 +401,7 @@
         tickLed();
         maintainWifi();
 
-        if (millis() - lastHeartbeatMs >= HEARTBEAT_MS)
+        if (millis() - lastHeartbeatMs >= HEARTBEAT_LOG_MS)
         {
             lastHeartbeatMs = millis();
             saveHeartbeat();
@@ -573,7 +594,8 @@
                             SerialMon.println(ENABLE_GSM ? "ON" : "OFF");
                         }
 
-                        persistFlags();
+                        if (flagsChanged)
+                            persistFlags();
                         if (flagsChanged && ENABLE_GSM)
                             SerialMon.println("GSM ON saved. Modem will start on next boot or first GSM fallback.");
                     }

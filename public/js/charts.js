@@ -13,6 +13,7 @@ let monChartInstance = null;
 let monCurrentMode = 'power';
 let energyRange = 'day';
 let monDataCache = [];
+let energyDataCache = [];
 let currentTrans = {}; // Храним переводы здесь
 
 // === CONFIGURATION ===
@@ -177,6 +178,7 @@ function calculateDailyStats(docs) {
 
 export function changeEnergyRange(range) {
     energyRange = range;
+    energyDataCache = [];
     ['day', 'week', 'month'].forEach(r => {
         const btn = document.getElementById(`btn-range-${r}`);
         if(btn) {
@@ -189,7 +191,12 @@ export function changeEnergyRange(range) {
             }
         }
     });
-    updateMonitoringChart();
+}
+
+export function setEnergyData(range, points) {
+    if (range !== energyRange) return;
+    energyDataCache = Array.isArray(points) ? points : [];
+    if (monCurrentMode === 'energy') updateMonitoringChart();
 }
 
 export function setMonChartMode(mode, docs, todayStartEnergy) {
@@ -220,7 +227,7 @@ export function setMonChartMode(mode, docs, todayStartEnergy) {
     if (selector) {
         if (mode === 'energy') {
             selector.classList.remove('hidden');
-            changeEnergyRange(energyRange); 
+            changeEnergyRange(energyRange);
         } else {
             selector.classList.add('hidden');
             updateMonitoringChart(todayStartEnergy);
@@ -229,7 +236,11 @@ export function setMonChartMode(mode, docs, todayStartEnergy) {
 }
 
 export function updateMonitoringChart(todayStartEnergy) {
-    if (!monDataCache || !monDataCache.length) return;
+    if (monCurrentMode === 'energy') {
+        if (!energyDataCache.length) return;
+    } else if (!monDataCache || !monDataCache.length) {
+        return;
+    }
 
     const ctx = document.getElementById('monitoringChart').getContext('2d');
     const isDark = document.documentElement.classList.contains('dark');
@@ -248,9 +259,8 @@ export function updateMonitoringChart(todayStartEnergy) {
 
     if (monCurrentMode === 'energy') {
         chartType = 'bar';
-        const processed = processBarData(monDataCache, energyRange);
-        labels = processed.labels;
-        data = processed.data;
+        labels = energyDataCache.map(point => point.label);
+        data = energyDataCache.map(point => point.value);
         
         if(energyRange === 'day') label = t.cEnergyDay || 'Споживання по днях (kWh)';
         else if(energyRange === 'week') label = t.cEnergyWeek || 'Споживання по тижнях (kWh)';
@@ -305,6 +315,9 @@ export function updateMonitoringChart(todayStartEnergy) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { bottom: chartType === 'bar' && energyRange === 'month' ? 8 : 0 }
+            },
             plugins: { 
                 legend: { display: false }, 
                 datalabels: { 
@@ -321,12 +334,13 @@ export function updateMonitoringChart(todayStartEnergy) {
                     grid: { display: false }, 
                     ticks: { 
                         color: textColor,
-                        maxRotation: 0,
+                        minRotation: chartType === 'bar' && energyRange === 'month' ? 90 : 0,
+                        maxRotation: chartType === 'bar' && energyRange === 'month' ? 90 : 0,
                         autoSkip: false,
                         callback: function(val, index, values) {
                             if (chartType === 'bar') {
                                 const total = values.length;
-                                if (total <= 12) return this.getLabelForValue(val);
+                                if (energyRange === 'month' || total <= 8) return this.getLabelForValue(val);
                                 if (index % 2 === 0) return this.getLabelForValue(val);
                                 return null;
                             }
@@ -350,72 +364,4 @@ export function updateMonitoringChart(todayStartEnergy) {
             }
         }
     });
-}
-
-function processBarData(docs, rangeType) {
-    if (!docs || docs.length < 2) return { labels: [], data: [] };
-
-    const grouped = {};
-    const getWeekNumber = (d) => {
-        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-    };
-    const getMonthNameUA = (idx) => ["Січ/Jan", "Лют/Feb", "Бер/Mar", "Кві/Apr", "Тра/May", "Чер/Jun", "Лип/Jul", "Сер/Aug", "Вер/Sep", "Жов/Oct", "Лис/Nov", "Гру/Dec"][idx];
-
-    docs.forEach(doc => {
-        let dateObj = new Date(doc.created_at); 
-        if (isNaN(dateObj)) return;
-
-        let key = ""; let label = ""; let sortKey = 0;
-
-if (rangeType === 'day') {
-             // ВИПРАВЛЕННЯ: Формуємо ключ вручну з локального часу, а не через ISO (UTC)
-             const year = dateObj.getFullYear();
-             const month = String(dateObj.getMonth() + 1).padStart(2, "0");
-             const day = String(dateObj.getDate()).padStart(2, "0");
-             
-             key = `${year}-${month}-${day}`; 
-             
-             // Підпис залишається як був
-             label = `${day}.${month}`;
-             sortKey = dateObj.getTime();
-        } else if (rangeType === 'week') {
-             const weekNum = getWeekNumber(dateObj);
-             const year = dateObj.getFullYear();
-             key = `${year}-W${weekNum}`;
-             label = `W${weekNum}`;
-             sortKey = year * 100 + weekNum;
-        } else if (rangeType === 'month') {
-             const month = dateObj.getMonth();
-             const year = dateObj.getFullYear();
-             key = `${year}-${month}`;
-             label = getMonthNameUA(month);
-             sortKey = year * 100 + month;
-        }
-
-        if (!grouped[key]) {
-            grouped[key] = { min: Infinity, max: -Infinity, label: label, sort: sortKey };
-        }
-        const val = doc.energy;
-        if (val < grouped[key].min) grouped[key].min = val;
-        if (val > grouped[key].max) grouped[key].max = val;
-    });
-
-    let sortedKeys = Object.keys(grouped).sort((a, b) => grouped[a].sort - grouped[b].sort);
-    if (rangeType === 'day') sortedKeys = sortedKeys.slice(-7);
-    if (rangeType === 'week') sortedKeys = sortedKeys.slice(-8);
-    if (rangeType === 'month') sortedKeys = sortedKeys.slice(-12);
-
-    const resultLabels = []; const resultData = [];
-    sortedKeys.forEach(key => {
-        const item = grouped[key];
-        let consumption = item.max - item.min;
-        if (consumption < 0) consumption = 0;
-        if (consumption > 1000) consumption = 0; 
-        resultLabels.push(item.label);
-        resultData.push(consumption.toFixed(2));
-    });
-    return { labels: resultLabels, data: resultData };
 }
