@@ -3,8 +3,9 @@
 export const translations = {
     ru: {
         subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", 
-        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от батареи", subOff: "Нет сети и резерв не работает",
-        runtimeTitle: "Запас АКБ 12В", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт", 
+        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от АКБ", subOff: "Нет сети и резерв не работает",
+        runtimeTitle: "Запас LiFePO4", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт",
+        voltLabel: "Напряжение", powerLabel: "Мощность", 
         battery: "Заряд АКБ 18650", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", 
         lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", 
         gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
@@ -25,8 +26,9 @@ export const translations = {
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
-        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від батареї", subOff: "Немає мережі і резерв не працює",
-        runtimeTitle: "Запас АКБ 12В", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт", 
+        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від АКБ", subOff: "Немає мережі і резерв не працює",
+        runtimeTitle: "Запас LiFePO4", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт",
+        voltLabel: "Напруга", powerLabel: "Потужність", 
         battery: "Заряд АКБ 18650", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", 
         lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", 
         gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
@@ -47,8 +49,9 @@ export const translations = {
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
-        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on battery", subOff: "No grid and the backup is off",
-        runtimeTitle: "12V battery left", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W", 
+        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on the battery", subOff: "No grid and the backup is off",
+        runtimeTitle: "LiFePO4 reserve", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W",
+        voltLabel: "Voltage", powerLabel: "Power", 
         battery: "18650 battery", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", 
         lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", 
         gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
@@ -254,7 +257,8 @@ export function renderSupplyStatus(reading, currentLang) {
     const mode = classifySupply(reading);
     const voltage = Number(reading?.voltage);
     const power = Number(reading?.power);
-    const measurement = `${Number.isFinite(voltage) ? voltage.toFixed(0) : "--"} V · ${Number.isFinite(power) ? power.toFixed(0) : "--"} W`;
+    const voltageText = Number.isFinite(voltage) ? voltage.toFixed(0) : "--";
+    const powerText = Number.isFinite(power) ? power.toFixed(0) : "--";
     const statusCard = document.getElementById("status-card");
     const statusText = document.getElementById("status-text");
     const statusSubtext = document.getElementById("status-subtext");
@@ -269,7 +273,7 @@ export function renderSupplyStatus(reading, currentLang) {
     statusCard.className = `${cardClass} rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col`;
     statusText.className = `text-2xl font-bold ${textClass}`;
     statusText.innerText = title;
-    statusSubtext.innerText = `${subtitle} · ${measurement}`;
+    statusSubtext.innerText = `${subtitle}\n${t.voltLabel}: ${voltageText} V\n${t.powerLabel}: ${powerText} W`;
     statusIconBg.className = `relative inline-flex rounded-full h-16 w-16 ${iconClass} items-center justify-center text-white text-2xl shadow-lg`;
     statusIconBg.innerHTML = `<i class="fas ${icon}"></i>`;
     statusPing.classList.toggle("hidden", hidePing);
@@ -349,10 +353,12 @@ export function renderHome(docs, currentLang) {
     docs.slice(0, 10).forEach((data) => {
         const evt = data.device || "Event";
         
-        let timeStr = "--:--:--"; 
+        let timeStr = "--:--:--";
+        let dateStr = "";
         if (data.timestamp && data.timestamp.toDate) {
-            // ИСПРАВЛЕНО НА 24 ЧАСА
-            timeStr = data.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+            const dateObj = data.timestamp.toDate();
+            timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+            dateStr = String(dateObj.getDate()).padStart(2, '0') + '.' + String(dateObj.getMonth() + 1).padStart(2, '0');
         }
         
         let borderClass = 'border-gray-300';
@@ -370,9 +376,12 @@ export function renderHome(docs, currentLang) {
                     Bat: ${data.battery}%${volStr} | Val: ${data.value}
                 </div>
             </div>
-            <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded">
-                ${timeStr}
-            </span>
+            <div class="flex flex-col items-end flex-shrink-0">
+                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1 tracking-wider">${dateStr}</span>
+                <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded whitespace-nowrap">
+                    ${timeStr}
+                </span>
+            </div>
         </li>`;
     });
     document.getElementById("logs-list").innerHTML = listHTML;
