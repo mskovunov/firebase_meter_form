@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=9';
-import * as Charts from './charts.js?v=10';
+import * as UI from './ui.js?v=10';
+import * as Charts from './charts.js?v=11';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -299,6 +299,7 @@ function startGraphsListener() {
         orderBy("timestamp_unix", "asc")
     );
     meterUnsubscribe = onSnapshot(qMeter, (snapshot) => {
+        if (snapshot.metadata.fromCache) return;
         meterDocs = snapshot.docs.map(item => item.data());
         refreshGraphs();
     }, (err) => console.error("Meter stats listener error:", err));

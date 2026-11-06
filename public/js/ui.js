@@ -244,6 +244,13 @@ export function filterMeterSeries(readings) {
     return kept;
 }
 
+export function displayedPower(reading) {
+    const voltage = Number(reading?.voltage);
+    const power = Number(reading?.power);
+    if (!Number.isFinite(voltage) || voltage < SUPPLY_VOLTAGE_MIN) return 0;
+    return Number.isFinite(power) ? power : 0;
+}
+
 export function classifySupply(reading) {
     const voltage = Number(reading?.voltage);
     const power = Number(reading?.power);
@@ -256,9 +263,9 @@ export function renderSupplyStatus(reading, currentLang) {
     const t = translations[currentLang];
     const mode = classifySupply(reading);
     const voltage = Number(reading?.voltage);
-    const power = Number(reading?.power);
+    const power = displayedPower(reading);
     const voltageText = Number.isFinite(voltage) ? voltage.toFixed(0) : "--";
-    const powerText = Number.isFinite(power) ? power.toFixed(0) : "--";
+    const powerText = power.toFixed(0);
     const statusCard = document.getElementById("status-card");
     const statusText = document.getElementById("status-text");
     const statusSubtext = document.getElementById("status-subtext");
@@ -389,7 +396,7 @@ export function renderHome(docs, currentLang) {
 
 export function updateMonitoringCards(latest, todayStartEnergy) {
     document.getElementById('mon-voltage').innerText = latest.voltage;
-    document.getElementById('mon-power').innerText = latest.power;
+    document.getElementById('mon-power').innerText = displayedPower(latest);
     document.getElementById('mon-energy').innerText = latest.energy;
 
     if(todayStartEnergy !== null) {

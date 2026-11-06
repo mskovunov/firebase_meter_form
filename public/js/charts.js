@@ -1,5 +1,5 @@
 // js/charts.js
-import { classifySupply, filterMeterSeries } from './ui.js?v=9';
+import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=10';
 
 try {
     if (typeof ChartDataLabels !== 'undefined') {
@@ -328,7 +328,7 @@ export function updateMonitoringChart(todayStartEnergy) {
             label = t.cVoltage || 'Напруга (V)'; 
             color = '#F59E0B'; bgColor = 'rgba(245, 158, 11, 0.2)';
         } else if (monCurrentMode === 'power') {
-            data = chartData.map(d => d.power);
+            data = chartData.map(d => displayedPower(d));
             label = t.cPower || 'Потужність (W)'; 
             color = '#3B82F6'; bgColor = 'rgba(59, 130, 246, 0.2)';
         } else if (monCurrentMode === 'daily') {
