@@ -2,7 +2,7 @@
 import { db } from './config.js';
 import * as UI from './ui.js?v=12';
 import * as Charts from './charts.js?v=13';
-import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
 let currentDocs = [];
@@ -22,7 +22,13 @@ let meterUnsubscribe = null;
 let latestSupplyReading = null;
 let supplyEdgeReadings = [];
 let supplyEdgesUnsubscribe = null;
+let mainUnsubscribe = null;
 let batteryCapacityKwh = 1.2;
+
+const HOME_EVENT_LIMIT = 30;
+const SUPPLY_EDGE_LIMIT = 120;
+const LIVE_METER_LIMIT = 80;
+const TODAY_START_LIMIT = 40;
 
 // === INIT ===
 document.addEventListener('DOMContentLoaded', () => {
@@ -47,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
     Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
-    startSupplyListener();
     startSupplyEdgesListener();
     fetchTodayStart();
     loadSettingsFromDB();
@@ -90,6 +95,8 @@ function handleViewChange(viewName) {
 
     if (viewName === 'graphs') {
         startGraphsListener();
+    } else {
+        stopGraphsListener();
     }
 }
 
@@ -235,29 +242,29 @@ async function handleEnergyRangeChange(range) {
     }
 }
 
+function applyLatestSupply(readings) {
+    const reading = readings.find(UI.isPlausibleMeterReading);
+    if (!reading) return;
+    latestSupplyReading = reading;
+    UI.renderSupplyStatus(latestSupplyReading, currentLang);
+    UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+}
+
 function startSupplyEdgesListener() {
-    const qEdges = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(600));
+    if (supplyEdgesUnsubscribe) return;
+    const qEdges = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(SUPPLY_EDGE_LIMIT));
     supplyEdgesUnsubscribe = onSnapshot(qEdges, (snapshot) => {
         if (snapshot.metadata.fromCache) return;
         supplyEdgeReadings = snapshot.docs.map(item => item.data());
         UI.renderSupplyEdges(supplyEdgeReadings);
+        applyLatestSupply(supplyEdgeReadings);
     }, (err) => console.error("Supply edges listener error:", err));
 }
 
-function startSupplyListener() {
-    const qSupply = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(10));
-    onSnapshot(qSupply, (snapshot) => {
-        const reading = snapshot.docs.map(item => item.data()).find(UI.isPlausibleMeterReading);
-        if (!reading) return;
-        latestSupplyReading = reading;
-        UI.renderSupplyStatus(latestSupplyReading, currentLang);
-        UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
-    }, (err) => console.error("Supply listener error:", err));
-}
-
 function startMainListener() {
-    const q = query(collection(db, "esp32_data"), orderBy("timestamp", "desc"), limit(1200));
-    onSnapshot(q, (snapshot) => {
+    if (mainUnsubscribe) return;
+    const q = query(collection(db, "esp32_data"), orderBy("timestamp", "desc"), limit(HOME_EVENT_LIMIT));
+    mainUnsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
             currentDocs = snapshot.docs.map(doc => doc.data());
             refreshData();
@@ -281,6 +288,17 @@ function refreshGraphs() {
     if (meterDocs.length) Charts.updateStatsChart(meterDocs, UI.translations, currentLang);
     const info = document.getElementById('t-data-info');
     if (info) info.innerText = UI.translations[currentLang].dataInfo;
+}
+
+function stopGraphsListener() {
+    if (graphsUnsubscribe) {
+        graphsUnsubscribe();
+        graphsUnsubscribe = null;
+    }
+    if (meterUnsubscribe) {
+        meterUnsubscribe();
+        meterUnsubscribe = null;
+    }
 }
 
 function startGraphsListener() {
@@ -345,7 +363,7 @@ async function fetchTodayStart() {
     const now = new Date();
     const dateString = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
     const startOfDayStr = dateString + " 00:00:00";
-    const qDaily = query(collection(db, "meter_readings"), where("created_at", ">=", startOfDayStr), orderBy("created_at", "asc"), limit(200));
+    const qDaily = query(collection(db, "meter_readings"), where("created_at", ">=", startOfDayStr), orderBy("created_at", "asc"), limit(TODAY_START_LIMIT));
     try {
        const snap = await getDocs(qDaily);
        const firstValid = snap.docs.map(doc => doc.data()).find(d => UI.isPlausibleMeterReading(d) && Number(d.energy) >= 0.1);
@@ -358,7 +376,7 @@ async function fetchTodayStart() {
 function startMonitoringListener() {
     if(monUnsubscribe) return; 
     
-    const qMon = query(collection(db, "meter_readings"), orderBy("created_at", "desc"), limit(200));
+    const qMon = query(collection(db, "meter_readings"), orderBy("created_at", "desc"), limit(LIVE_METER_LIMIT));
     
     monUnsubscribe = onSnapshot(qMon, (snapshot) => {
         if(snapshot.empty) {
@@ -599,31 +617,3 @@ async function saveBatteryCapacityToDB() {
         btn.innerHTML = originalBtnText;
     }
 }
-
-// === ВРЕМЕННАЯ ФУНКЦИЯ ДЛЯ ОЧИСТКИ БАЗЫ ОТ НУЛЕЙ ===
-window.cleanZeroEnergy = async () => {
-    console.log("⏳ Шукаємо глючні записи (energy < 0.1)...");
-
-    try {
-        const q = query(collection(db, "meter_readings"), where("energy", "<", 0.1));
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            console.log("✅ Таких записів не знайдено. База чиста!");
-            return;
-        }
-
-        console.log(`🗑️ Знайдено ${snapshot.size} записів. Починаємо видалення...`);
-
-        let count = 0;
-        for (const docSnap of snapshot.docs) {
-            await deleteDoc(docSnap.ref);
-            count++;
-            if (count % 10 === 0) console.log(`Видалено ${count} з ${snapshot.size}...`);
-        }
-
-        console.log("🚀 Очищення успішно завершено! Онови сторінку (F5).");
-    } catch (error) {
-        console.error("❌ Помилка під час видалення:", error);
-    }
-};

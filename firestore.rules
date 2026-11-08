@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isDevice() {
+      return signedIn() && request.auth.token.email == 'esp32@test.com';
+    }
+    match /esp32_data/{id} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasOnly(['value', 'device', 'battery', 'voltage', 'timestamp'])
+        && request.resource.data.value is number
+        && request.resource.data.device is string
+        && request.resource.data.device.size() > 0
+        && request.resource.data.device.size() < 40
+        && request.resource.data.battery is number
+        && request.resource.data.voltage is number
+        && request.resource.data.timestamp is timestamp;
+      allow update, delete: if false;
+    }
+
+    match /meter_readings/{id} {
+      allow read: if true;
+      allow create: if isDevice()
+        && request.resource.data.keys().hasOnly(['voltage', 'current', 'power', 'energy', 'created_at', 'timestamp_unix'])
+        && request.resource.data.voltage is number
+        && request.resource.data.voltage >= 1
+        && request.resource.data.current is number
+        && request.resource.data.power is number
+        && request.resource.data.energy is number
+        && request.resource.data.energy >= 0.1
+        && request.resource.data.created_at is string
+        && request.resource.data.timestamp_unix is number;
+      allow update, delete: if false;
+    }
+
+    match /system_logs/{id} {
+      allow read: if true;
+      allow create: if isDevice()
+        && request.resource.data.keys().hasOnly(['message', 'created_at', 'reason'])
+        && request.resource.data.message is string
+        && request.resource.data.created_at is string
+        && request.resource.data.reason is string;
+      allow update, delete: if false;
+    }
+
+    match /esp32_settings/{id} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

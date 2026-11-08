@@ -108,7 +108,9 @@
             return false;
         if (power < 0 || power > 25000.0)
             return false;
-        if (energy < 0 || energy > 1000000.0)
+        if (energy < 0.1 || energy > 1000000.0)
+            return false;
+        if (voltage < 1.0)
             return false;
         if (voltage >= 80.0 && current >= 0.05 && power > voltage * current * 1.5 + 30.0)
             return false;
@@ -479,14 +481,12 @@
             float energy = pzem.energy();
             esp_task_wdt_reset();
 
-            if (isnan(voltage) || voltage < 0)
-                voltage = 0.0;
-            if (isnan(current) || current < 0)
-                current = 0.0;
-            if (isnan(power) || power < 0)
-                power = 0.0;
-            if (isnan(energy) || energy < 0)
-                energy = 0.0;
+            if (isnan(voltage) || isnan(current) || isnan(power) || isnan(energy))
+            {
+                SerialMon.println("PZEM no response, skip");
+            }
+            else
+            {
 
             double cleanVoltage = round(voltage * 10) / 10.0;
             double cleanCurrent = round(current * 1000) / 1000.0;
@@ -525,6 +525,7 @@
                 SerialMon.println(">>> FIREBASE SUCCESS.");
             else
                 SerialMon.printf(">>> FIREBASE ERROR: %s\n", fbdo.errorReason().c_str());
+            }
             }
         }
 
