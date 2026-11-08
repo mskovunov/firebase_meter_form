@@ -251,29 +251,38 @@ export function displayedPower(reading) {
     return Number.isFinite(power) ? power : 0;
 }
 
-export function supplyEdgeTimes(readings) {
+export function supplyEdgeTimes(readings, options = {}) {
+    const historyExhausted = options.historyExhausted === true;
     const ordered = (readings || [])
         .filter(reading => Number.isFinite(Number(reading?.timestamp_unix)) && isPlausibleMeterReading(reading))
         .sort((a, b) => Number(b.timestamp_unix) - Number(a.timestamp_unix));
-    if (!ordered.length) return { on: null, off: null };
+    if (!ordered.length) return { on: null, off: null, complete: historyExhausted };
 
     const isOn = (reading) => Number(reading.voltage) >= SUPPLY_VOLTAGE_MIN;
     const edgeDate = (reading) => new Date(Number(reading.timestamp_unix) * 1000);
     let index = 0;
     const currentOn = isOn(ordered[0]);
     while (index < ordered.length && isOn(ordered[index]) === currentOn) index += 1;
+    const sawOpposite = index < ordered.length;
     const currentEdge = ordered[index - 1];
     let previousEdge = null;
-    if (index < ordered.length) {
+    let previousBounded = false;
+    if (sawOpposite) {
         const previousOn = !currentOn;
         let previous = index;
         while (previous < ordered.length && isOn(ordered[previous]) === previousOn) previous += 1;
-        previousEdge = ordered[previous - 1];
+        previousBounded = previous < ordered.length || historyExhausted;
+        if (previousBounded) previousEdge = ordered[previous - 1];
     }
 
-    return currentOn
-        ? { on: edgeDate(currentEdge), off: previousEdge ? edgeDate(previousEdge) : null }
-        : { on: previousEdge ? edgeDate(previousEdge) : null, off: edgeDate(currentEdge) };
+    const currentBounded = sawOpposite || historyExhausted;
+    const onReading = currentOn ? (currentBounded ? currentEdge : null) : (previousBounded ? previousEdge : null);
+    const offReading = currentOn ? (previousBounded ? previousEdge : null) : (currentBounded ? currentEdge : null);
+    return {
+        on: onReading ? edgeDate(onReading) : null,
+        off: offReading ? edgeDate(offReading) : null,
+        complete: currentBounded && (!sawOpposite || previousBounded)
+    };
 }
 
 function formatEdgeTime(date) {
@@ -285,12 +294,15 @@ function formatEdgeTime(date) {
     return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")} ${time}`;
 }
 
-export function renderSupplyEdges(readings) {
-    const edges = supplyEdgeTimes(readings);
+export function renderSupplyEdgeResult(edges) {
     const onEl = document.getElementById("time-last-on");
     const offEl = document.getElementById("time-last-off");
-    if (onEl) onEl.innerText = formatEdgeTime(edges.on);
-    if (offEl) offEl.innerText = formatEdgeTime(edges.off);
+    if (onEl) onEl.innerText = formatEdgeTime(edges?.on);
+    if (offEl) offEl.innerText = formatEdgeTime(edges?.off);
+}
+
+export function renderSupplyEdges(readings) {
+    renderSupplyEdgeResult(supplyEdgeTimes(readings));
 }
 
 export function classifySupply(reading) {

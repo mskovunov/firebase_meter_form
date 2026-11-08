@@ -110,8 +110,6 @@
             return false;
         if (energy < 0.1 || energy > 1000000.0)
             return false;
-        if (voltage < 1.0)
-            return false;
         if (voltage >= 80.0 && current >= 0.05 && power > voltage * current * 1.5 + 30.0)
             return false;
         if (hasAcceptedPzemEnergy)
