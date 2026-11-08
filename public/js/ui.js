@@ -285,6 +285,38 @@ export function supplyEdgeTimes(readings, options = {}) {
     };
 }
 
+function mainsEventTime(event) {
+    if (!event?.timestamp) return null;
+    const time = event.timestamp.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+    return time instanceof Date && !Number.isNaN(time.getTime()) ? time : null;
+}
+
+export function silenceOutageEdges(readings, events) {
+    const ordered = (readings || [])
+        .filter(reading => Number.isFinite(Number(reading?.timestamp_unix)) && isPlausibleMeterReading(reading))
+        .sort((a, b) => Number(a.timestamp_unix) - Number(b.timestamp_unix));
+    const mains = (events || []).map(event => {
+        if (!event || !["RoutineCheck", "PowerLost", "PowerRestored", "SystemStart"].includes(event.device)) return null;
+        const time = mainsEventTime(event);
+        if (!time) return null;
+        return { time, value: Number(event.value) };
+    }).filter(Boolean);
+
+    let found = null;
+    for (let index = 1; index < ordered.length; index += 1) {
+        const previousAt = Number(ordered[index - 1].timestamp_unix) * 1000;
+        const nextAt = Number(ordered[index].timestamp_unix) * 1000;
+        if (nextAt - previousAt < 180000) continue;
+        if (Number(ordered[index - 1].voltage) < SUPPLY_VOLTAGE_MIN || Number(ordered[index].voltage) < SUPPLY_VOLTAGE_MIN) continue;
+        const offs = mains
+            .filter(event => event.value === 0 && event.time.getTime() > previousAt && event.time.getTime() < nextAt)
+            .sort((a, b) => a.time - b.time);
+        if (!offs.length) continue;
+        found = { off: offs[0].time, on: new Date(nextAt) };
+    }
+    return found;
+}
+
 function formatEdgeTime(date) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "--:--";
     const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });

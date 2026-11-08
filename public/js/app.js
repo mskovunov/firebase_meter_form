@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=14';
-import * as Charts from './charts.js?v=15';
+import * as UI from './ui.js?v=15';
+import * as Charts from './charts.js?v=16';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -21,6 +21,8 @@ let meterDocs = [];
 let meterUnsubscribe = null;
 let latestSupplyReading = null;
 let supplyEdgeReadings = [];
+let supplyEdgeHistory = [];
+let confirmedSilence = null;
 let supplyEdgesUnsubscribe = null;
 let supplyEdgeRequest = 0;
 let cachedSupplyEdges = null;
@@ -253,10 +255,29 @@ function rememberInverterOff(reading) {
     inverterOffAt = offAt;
 }
 
+function readingsForSilence() {
+    const byTime = new Map();
+    [...supplyEdgeHistory, ...supplyEdgeReadings].forEach(reading => {
+        const time = Number(reading?.timestamp_unix);
+        if (Number.isFinite(time)) byTime.set(time, reading);
+    });
+    return [...byTime.values()];
+}
+
+function noteSilence(events) {
+    const silence = UI.silenceOutageEdges(readingsForSilence(), events || currentDocs);
+    if (silence && (!confirmedSilence || silence.on > confirmedSilence.on)) confirmedSilence = silence;
+    return silence;
+}
+
 function edgesForDisplay() {
-    const edges = cachedSupplyEdges || { on: null, off: null };
-    if (inverterOffAt && (!edges.off || inverterOffAt > edges.off)) {
-        return { ...edges, off: inverterOffAt };
+    const edges = { ...(cachedSupplyEdges || { on: null, off: null }) };
+    noteSilence(currentDocs);
+    if (confirmedSilence?.on && (!edges.on || confirmedSilence.on > edges.on)) edges.on = confirmedSilence.on;
+    if (confirmedSilence?.off && (!edges.off || confirmedSilence.off > edges.off)) edges.off = confirmedSilence.off;
+    const meterAt = Number(latestSupplyReading?.timestamp_unix) * 1000;
+    if (inverterOffAt && (!Number.isFinite(meterAt) || meterAt < inverterOffAt.getTime()) && (!edges.off || inverterOffAt > edges.off)) {
+        edges.off = inverterOffAt;
     }
     return edges;
 }
@@ -267,7 +288,47 @@ function paintLiveSupply() {
     const shown = UI.supplyReadingForDisplay(latestSupplyReading, currentDocs);
     UI.renderSupplyStatus(shown, currentLang);
     UI.renderReserveRuntime(shown, todayStartEnergy, currentLang, batteryCapacityKwh);
-    if (cachedSupplyEdges || inverterOffAt) UI.renderSupplyEdgeResult(edgesForDisplay());
+    if (cachedSupplyEdges || inverterOffAt || confirmedSilence) UI.renderSupplyEdgeResult(edgesForDisplay());
+    lookupSilenceGap();
+}
+
+let silenceLookup = 0;
+
+async function lookupSilenceGap() {
+    const requestId = ++silenceLookup;
+    const readings = readingsForSilence()
+        .filter(UI.isPlausibleMeterReading)
+        .sort((a, b) => Number(a.timestamp_unix) - Number(b.timestamp_unix));
+    let checked = 0;
+    for (let index = readings.length - 1; index > 0; index -= 1) {
+        const previousAt = Number(readings[index - 1].timestamp_unix) * 1000;
+        const nextAt = Number(readings[index].timestamp_unix) * 1000;
+        if (nextAt - previousAt < 180000) continue;
+        if (Number(readings[index - 1].voltage) < 80 || Number(readings[index].voltage) < 80) continue;
+        checked += 1;
+        if (confirmedSilence && confirmedSilence.on >= new Date(nextAt)) return;
+        const known = UI.silenceOutageEdges([readings[index - 1], readings[index]], currentDocs);
+        if (known) {
+            confirmedSilence = known;
+            UI.renderSupplyEdgeResult(edgesForDisplay());
+            return;
+        }
+        const snap = await getDocs(query(
+            collection(db, "esp32_data"),
+            where("timestamp", ">=", new Date(previousAt)),
+            where("timestamp", "<=", new Date(nextAt)),
+            orderBy("timestamp", "asc"),
+            limit(40)
+        ));
+        if (requestId !== silenceLookup) return;
+        const found = UI.silenceOutageEdges([readings[index - 1], readings[index]], snap.docs.map(item => item.data()));
+        if (found) {
+            if (!confirmedSilence || found.on > confirmedSilence.on) confirmedSilence = found;
+            UI.renderSupplyEdgeResult(edgesForDisplay());
+            return;
+        }
+        if (checked >= 5) return;
+    }
 }
 
 function applyLatestSupply(readings) {
@@ -303,7 +364,7 @@ async function extendSupplyEdges(docs, stateOn) {
     let exhausted = docs.length < SUPPLY_EDGE_LIMIT;
     const oldestAllowed = Math.floor(Date.now() / 1000) - 8 * 24 * 3600;
     let edges = UI.supplyEdgeTimes(combined, { historyExhausted: exhausted });
-    UI.renderSupplyEdgeResult(edges);
+    UI.renderSupplyEdgeResult(edgesForDisplay());
 
     while (!edges.complete && !exhausted && cursor) {
         const oldest = Number(cursor.data().timestamp_unix);
@@ -326,10 +387,11 @@ async function extendSupplyEdges(docs, stateOn) {
             if (older.size < 200) exhausted = true;
         }
         edges = UI.supplyEdgeTimes(combined, { historyExhausted: exhausted });
-        UI.renderSupplyEdgeResult(edges);
+        UI.renderSupplyEdgeResult(edgesForDisplay());
     }
 
     if (requestId !== supplyEdgeRequest) return;
+    supplyEdgeHistory = combined;
     cachedSupplyEdges = { ...edges, stateOn };
     UI.renderSupplyEdgeResult(edgesForDisplay());
     paintLiveSupply();
