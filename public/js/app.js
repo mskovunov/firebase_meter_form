@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=13';
-import * as Charts from './charts.js?v=14';
+import * as UI from './ui.js?v=14';
+import * as Charts from './charts.js?v=15';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -24,6 +24,7 @@ let supplyEdgeReadings = [];
 let supplyEdgesUnsubscribe = null;
 let supplyEdgeRequest = 0;
 let cachedSupplyEdges = null;
+let inverterOffAt = null;
 let mainUnsubscribe = null;
 let batteryCapacityKwh = 1.2;
 
@@ -244,12 +245,36 @@ async function handleEnergyRangeChange(range) {
     }
 }
 
+function rememberInverterOff(reading) {
+    const offAt = UI.newestInverterOff(currentDocs);
+    if (!offAt) return;
+    const meterAt = Number(reading?.timestamp_unix) * 1000;
+    if (Number.isFinite(meterAt) && meterAt >= offAt.getTime()) return;
+    inverterOffAt = offAt;
+}
+
+function edgesForDisplay() {
+    const edges = cachedSupplyEdges || { on: null, off: null };
+    if (inverterOffAt && (!edges.off || inverterOffAt > edges.off)) {
+        return { ...edges, off: inverterOffAt };
+    }
+    return edges;
+}
+
+function paintLiveSupply() {
+    if (!latestSupplyReading) return;
+    rememberInverterOff(latestSupplyReading);
+    const shown = UI.supplyReadingForDisplay(latestSupplyReading, currentDocs);
+    UI.renderSupplyStatus(shown, currentLang);
+    UI.renderReserveRuntime(shown, todayStartEnergy, currentLang, batteryCapacityKwh);
+    if (cachedSupplyEdges || inverterOffAt) UI.renderSupplyEdgeResult(edgesForDisplay());
+}
+
 function applyLatestSupply(readings) {
     const reading = readings.find(UI.isPlausibleMeterReading);
     if (!reading) return;
     latestSupplyReading = reading;
-    UI.renderSupplyStatus(latestSupplyReading, currentLang);
-    UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+    paintLiveSupply();
 }
 
 function startSupplyEdgesListener() {
@@ -263,7 +288,8 @@ function startSupplyEdgesListener() {
         const newest = supplyEdgeReadings.find(UI.isPlausibleMeterReading);
         const stateOn = newest ? Number(newest.voltage) >= 80 : null;
         if (cachedSupplyEdges?.complete && cachedSupplyEdges.stateOn === stateOn) {
-            UI.renderSupplyEdgeResult(cachedSupplyEdges);
+            UI.renderSupplyEdgeResult(edgesForDisplay());
+            paintLiveSupply();
             return;
         }
         extendSupplyEdges(docs, stateOn);
@@ -305,7 +331,8 @@ async function extendSupplyEdges(docs, stateOn) {
 
     if (requestId !== supplyEdgeRequest) return;
     cachedSupplyEdges = { ...edges, stateOn };
-    UI.renderSupplyEdgeResult(cachedSupplyEdges);
+    UI.renderSupplyEdgeResult(edgesForDisplay());
+    paintLiveSupply();
 }
 
 function startMainListener() {
@@ -388,18 +415,15 @@ function refreshData() {
     if(currentDocs.length > 0) {
         UI.renderHome(currentDocs, currentLang);
     }
-    if (latestSupplyReading) {
-        UI.renderSupplyStatus(latestSupplyReading, currentLang);
-        UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
-    }
-    if (cachedSupplyEdges) UI.renderSupplyEdgeResult(cachedSupplyEdges);
+    if (latestSupplyReading) paintLiveSupply();
+    else if (cachedSupplyEdges || inverterOffAt) UI.renderSupplyEdgeResult(edgesForDisplay());
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
 }
 
 // === MONITORING LOGIC ===
 function refreshMonitoringCards() {
     if (monDataCache.length === 0) return;
-    const latest = monDataCache[monDataCache.length - 1];
+    const latest = UI.supplyReadingForDisplay(monDataCache[monDataCache.length - 1], currentDocs);
     UI.updateMonitoringCards(latest, todayStartEnergy);
     if (activeMonMode !== 'energy') {
         Charts.setMonChartMode(activeMonMode, monDataCache, todayStartEnergy);
@@ -416,7 +440,7 @@ async function fetchTodayStart() {
        const firstValid = snap.docs.map(doc => doc.data()).find(d => UI.isPlausibleMeterReading(d) && Number(d.energy) >= 0.1);
        todayStartEnergy = firstValid ? Number(firstValid.energy) : null;
        refreshMonitoringCards();
-       if (latestSupplyReading) UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+       if (latestSupplyReading) paintLiveSupply();
     } catch(e) { console.log("Daily fetch error", e); }
 }
 
@@ -515,7 +539,7 @@ async function loadSettingsFromDB() {
             if (Number.isFinite(capacity) && capacity > 0) {
                 batteryCapacityKwh = capacity;
                 if (inputBattery) inputBattery.value = capacity;
-                if (latestSupplyReading) UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+                if (latestSupplyReading) paintLiveSupply();
             } else if (inputBattery && !inputBattery.value) {
                 inputBattery.value = batteryCapacityKwh;
             }
@@ -650,7 +674,7 @@ async function saveBatteryCapacityToDB() {
         }, { merge: true });
 
         batteryCapacityKwh = newVal;
-        if (latestSupplyReading) UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
+        if (latestSupplyReading) paintLiveSupply();
 
         status.innerText = UI.translations[currentLang].msgSaved || "Saved!";
         status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-green-500";

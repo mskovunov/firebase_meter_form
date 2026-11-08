@@ -305,6 +305,32 @@ export function renderSupplyEdges(readings) {
     renderSupplyEdgeResult(supplyEdgeTimes(readings));
 }
 
+export function newestInverterOff(events) {
+    const parsed = [];
+    (events || []).forEach(event => {
+        if (!event || !["RoutineCheck", "PowerLost", "PowerRestored", "SystemStart"].includes(event.device)) return;
+        const time = event.timestamp?.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+        if (!(time instanceof Date) || Number.isNaN(time.getTime())) return;
+        parsed.push({ time, value: Number(event.value) });
+    });
+    parsed.sort((a, b) => b.time - a.time);
+    if (!parsed.length || parsed[0].value !== 0) return null;
+    let edge = parsed[0];
+    for (const event of parsed) {
+        if (event.value !== 0) break;
+        edge = event;
+    }
+    return edge.time;
+}
+
+export function supplyReadingForDisplay(reading, events) {
+    const offAt = newestInverterOff(events);
+    if (!reading || !offAt) return reading;
+    const meterAt = Number(reading.timestamp_unix) * 1000;
+    if (Number.isFinite(meterAt) && offAt.getTime() <= meterAt) return reading;
+    return { ...reading, voltage: 0, power: 0, current: 0 };
+}
+
 export function classifySupply(reading) {
     const voltage = Number(reading?.voltage);
     const power = Number(reading?.power);
