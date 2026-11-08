@@ -251,6 +251,48 @@ export function displayedPower(reading) {
     return Number.isFinite(power) ? power : 0;
 }
 
+export function supplyEdgeTimes(readings) {
+    const ordered = (readings || [])
+        .filter(reading => Number.isFinite(Number(reading?.timestamp_unix)) && isPlausibleMeterReading(reading))
+        .sort((a, b) => Number(b.timestamp_unix) - Number(a.timestamp_unix));
+    if (!ordered.length) return { on: null, off: null };
+
+    const isOn = (reading) => Number(reading.voltage) >= SUPPLY_VOLTAGE_MIN;
+    const edgeDate = (reading) => new Date(Number(reading.timestamp_unix) * 1000);
+    let index = 0;
+    const currentOn = isOn(ordered[0]);
+    while (index < ordered.length && isOn(ordered[index]) === currentOn) index += 1;
+    const currentEdge = ordered[index - 1];
+    let previousEdge = null;
+    if (index < ordered.length) {
+        const previousOn = !currentOn;
+        let previous = index;
+        while (previous < ordered.length && isOn(ordered[previous]) === previousOn) previous += 1;
+        previousEdge = ordered[previous - 1];
+    }
+
+    return currentOn
+        ? { on: edgeDate(currentEdge), off: previousEdge ? edgeDate(previousEdge) : null }
+        : { on: previousEdge ? edgeDate(previousEdge) : null, off: edgeDate(currentEdge) };
+}
+
+function formatEdgeTime(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "--:--";
+    const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+    const now = new Date();
+    const sameDay = date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+    if (sameDay) return time;
+    return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")} ${time}`;
+}
+
+export function renderSupplyEdges(readings) {
+    const edges = supplyEdgeTimes(readings);
+    const onEl = document.getElementById("time-last-on");
+    const offEl = document.getElementById("time-last-off");
+    if (onEl) onEl.innerText = formatEdgeTime(edges.on);
+    if (offEl) offEl.innerText = formatEdgeTime(edges.off);
+}
+
 export function classifySupply(reading) {
     const voltage = Number(reading?.voltage);
     const power = Number(reading?.power);
@@ -348,12 +390,6 @@ export function renderHome(docs, currentLang) {
     if (latest.timestamp && latest.timestamp.toDate) timeString = latest.timestamp.toDate().toLocaleTimeString([], { hour12: false });
     document.getElementById("last-update").innerText = `${t.updated}: ${timeString}`;
     document.getElementById("last-event-type").innerText = eventType;
-
-    const restoreDoc = docs.find(d => d.device === "PowerRestored");
-    document.getElementById("time-last-on").innerText = (restoreDoc && restoreDoc.timestamp) ? restoreDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : "--:--";
-
-    const lostDoc = docs.find(d => d.device === "PowerLost");
-    document.getElementById("time-last-off").innerText = (lostDoc && lostDoc.timestamp) ? lostDoc.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : "--:--";
 
     // History List
     let listHTML = "";

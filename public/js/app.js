@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=10';
-import * as Charts from './charts.js?v=11';
+import * as UI from './ui.js?v=12';
+import * as Charts from './charts.js?v=13';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -20,6 +20,8 @@ let graphsUnsubscribe = null;
 let meterDocs = [];
 let meterUnsubscribe = null;
 let latestSupplyReading = null;
+let supplyEdgeReadings = [];
+let supplyEdgesUnsubscribe = null;
 let batteryCapacityKwh = 1.2;
 
 // === INIT ===
@@ -46,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
     startSupplyListener();
+    startSupplyEdgesListener();
     fetchTodayStart();
     loadSettingsFromDB();
     
@@ -232,6 +235,15 @@ async function handleEnergyRangeChange(range) {
     }
 }
 
+function startSupplyEdgesListener() {
+    const qEdges = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(600));
+    supplyEdgesUnsubscribe = onSnapshot(qEdges, (snapshot) => {
+        if (snapshot.metadata.fromCache) return;
+        supplyEdgeReadings = snapshot.docs.map(item => item.data());
+        UI.renderSupplyEdges(supplyEdgeReadings);
+    }, (err) => console.error("Supply edges listener error:", err));
+}
+
 function startSupplyListener() {
     const qSupply = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(10));
     onSnapshot(qSupply, (snapshot) => {
@@ -315,6 +327,7 @@ function refreshData() {
         UI.renderSupplyStatus(latestSupplyReading, currentLang);
         UI.renderReserveRuntime(latestSupplyReading, todayStartEnergy, currentLang, batteryCapacityKwh);
     }
+    if (supplyEdgeReadings.length) UI.renderSupplyEdges(supplyEdgeReadings);
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
 }
 
