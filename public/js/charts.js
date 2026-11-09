@@ -1,5 +1,5 @@
 // js/charts.js
-import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.0911.2222';
+import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.0911.2241';
 
 try {
     if (typeof ChartDataLabels !== 'undefined') {
@@ -108,8 +108,8 @@ export function updateMainChart(docs) {
 }
 
 // === 2. STATS CHART ===
-export function updateStatsChart(docs, translations, currentLang) {
-    const stats = calculateSupplyStats(docs);
+export function updateStatsChart(docs, translations, currentLang, events) {
+    const stats = calculateSupplyStats(docs, events);
     const labels = Object.keys(stats).sort((a, b) => stats[a].sort - stats[b].sort);
 
     const dataOn = labels.map(day => stats[day].grid.toFixed(2));
@@ -176,7 +176,29 @@ export function updateStatsChart(docs, translations, currentLang) {
     }
 }
 
-function calculateSupplyStats(docs) {
+function mainsOffIntervals(events) {
+    const points = (events || []).map(event => {
+        if (!event || !["RoutineCheck", "PowerLost", "PowerRestored", "SystemStart"].includes(event.device)) return null;
+        const time = event.timestamp?.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
+        if (!(time instanceof Date) || Number.isNaN(time.getTime())) return null;
+        return { time, value: Number(event.value) };
+    }).filter(Boolean).sort((a, b) => a.time - b.time);
+
+    const intervals = [];
+    let start = null;
+    for (const point of points) {
+        if (point.value === 0 && !start) start = point.time;
+        if (point.value !== 0 && start) {
+            intervals.push([start, point.time]);
+            start = null;
+        }
+    }
+    if (start) intervals.push([start, new Date()]);
+    return intervals;
+}
+
+function calculateSupplyStats(docs, events) {
+    const outages = mainsOffIntervals(events);
     const readings = filterMeterSeries(
         [...docs]
             .filter(item => Number.isFinite(Number(item.timestamp_unix)))
@@ -214,15 +236,28 @@ function calculateSupplyStats(docs) {
         addStats(tempTime, (to - tempTime) / (1000 * 60 * 60), state);
     };
 
+    const advanceSplit = (from, to, state) => {
+        let cursor = new Date(from);
+        for (const [offStart, offEnd] of outages) {
+            if (offEnd <= cursor || offStart >= to) continue;
+            const cutStart = offStart > cursor ? offStart : cursor;
+            const cutEnd = offEnd < to ? offEnd : to;
+            if (cutStart > cursor) advance(cursor, cutStart, state);
+            if (cutEnd > cutStart) advance(cutStart, cutEnd, "blackout");
+            cursor = new Date(cutEnd);
+        }
+        if (to > cursor) advance(cursor, to, state);
+    };
+
     for (let i = 1; i < readings.length; i++) {
         let currentTime = new Date(Number(readings[i].timestamp_unix) * 1000);
         if (currentTime > now) currentTime = now;
         if (currentTime < lastTime) continue;
-        advance(lastTime, currentTime, currentState);
+        advanceSplit(lastTime, currentTime, currentState);
         lastTime = currentTime;
         currentState = classifySupply(readings[i]);
     }
-    if (now > lastTime) advance(lastTime, now, currentState);
+    if (now > lastTime) advanceSplit(lastTime, now, currentState);
     return stats;
 }
 

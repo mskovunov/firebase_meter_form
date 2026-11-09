@@ -1,6 +1,6 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.0911.2222';
+import * as UI from './ui.js?v=2.0911.2241';
 import * as Charts from './charts.js?v=16';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -26,6 +26,7 @@ let confirmedSilence = null;
 let supplyEdgesUnsubscribe = null;
 let supplyEdgeRequest = 0;
 let cachedSupplyEdges = null;
+let supplyHistoryReady = false;
 let inverterOffAt = null;
 let mainUnsubscribe = null;
 let batteryCapacityKwh = 1.2;
@@ -304,8 +305,9 @@ function paintLiveSupply() {
         batteryCapacityKwh,
         latestChargeReading
     );
-    if (cachedSupplyEdges || inverterOffAt || confirmedSilence) UI.renderSupplyEdgeResult(edgesForDisplay());
-    lookupSilenceGap();
+    if (supplyHistoryReady && (cachedSupplyEdges || inverterOffAt || confirmedSilence)) {
+        UI.renderSupplyEdgeResult(edgesForDisplay());
+    }
 }
 
 let silenceLookup = 0;
@@ -364,7 +366,7 @@ function startSupplyEdgesListener() {
         applyLatestSupply(supplyEdgeReadings);
         const newest = supplyEdgeReadings.find(UI.isPlausibleMeterReading);
         const stateOn = newest ? Number(newest.voltage) >= 80 : null;
-        if (cachedSupplyEdges?.complete && cachedSupplyEdges.stateOn === stateOn) {
+        if (supplyHistoryReady && cachedSupplyEdges?.complete && cachedSupplyEdges.stateOn === stateOn) {
             UI.renderSupplyEdgeResult(edgesForDisplay());
             paintLiveSupply();
             return;
@@ -380,7 +382,6 @@ async function extendSupplyEdges(docs, stateOn) {
     let exhausted = docs.length < SUPPLY_EDGE_LIMIT;
     const oldestAllowed = Math.floor(Date.now() / 1000) - 8 * 24 * 3600;
     let edges = UI.supplyEdgeTimes(combined, { historyExhausted: exhausted });
-    UI.renderSupplyEdgeResult(edgesForDisplay());
 
     while (!edges.complete && !exhausted && cursor) {
         const oldest = Number(cursor.data().timestamp_unix);
@@ -403,12 +404,14 @@ async function extendSupplyEdges(docs, stateOn) {
             if (older.size < 200) exhausted = true;
         }
         edges = UI.supplyEdgeTimes(combined, { historyExhausted: exhausted });
-        UI.renderSupplyEdgeResult(edgesForDisplay());
     }
 
     if (requestId !== supplyEdgeRequest) return;
     supplyEdgeHistory = combined;
     cachedSupplyEdges = { ...edges, stateOn };
+    await lookupSilenceGap();
+    if (requestId !== supplyEdgeRequest) return;
+    supplyHistoryReady = true;
     UI.renderSupplyEdgeResult(edgesForDisplay());
     paintLiveSupply();
 }
@@ -437,7 +440,7 @@ function refreshGraphs() {
     if (!docs.length && !meterDocs.length) return;
     Charts.updateChartConfig(UI.translations[currentLang]);
     if (docs.length) Charts.updateMainChart(docs);
-    if (meterDocs.length) Charts.updateStatsChart(meterDocs, UI.translations, currentLang);
+    if (meterDocs.length) Charts.updateStatsChart(meterDocs, UI.translations, currentLang, graphDocs);
     const info = document.getElementById('t-data-info');
     if (info) info.innerText = UI.translations[currentLang].dataInfo;
 }
@@ -494,7 +497,7 @@ function refreshData() {
         UI.renderHome(currentDocs, currentLang);
     }
     if (latestSupplyReading) paintLiveSupply();
-    else if (cachedSupplyEdges || inverterOffAt) UI.renderSupplyEdgeResult(edgesForDisplay());
+    else if (supplyHistoryReady && (cachedSupplyEdges || inverterOffAt)) UI.renderSupplyEdgeResult(edgesForDisplay());
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
     UI.renderReserveRuntime(
         latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
