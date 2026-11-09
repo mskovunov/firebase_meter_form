@@ -620,13 +620,20 @@
 
         lastAttemptMs = millis();
         esp_task_wdt_reset();
-        refreshPlugSettings();
+        static unsigned long lastSettingsReadMs = 0;
+        if (lastSettingsReadMs == 0 || millis() - lastSettingsReadMs >= 300000UL)
+        {
+            refreshPlugSettings();
+            lastSettingsReadMs = millis();
+        }
         esp_task_wdt_reset();
 
         EcoFlowReading reading;
         if (!ecoFlowRead(plugIp, 6668, plugId, plugKey, reading))
         {
             SerialMon.println("ecoFlow: no reading");
+            if (plugIntervalMs > 15000UL)
+                lastAttemptMs = millis() - (plugIntervalMs - 15000UL);
             esp_task_wdt_reset();
             return;
         }

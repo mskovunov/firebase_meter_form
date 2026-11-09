@@ -19,7 +19,7 @@ export const translations = {
         chargeSubOff: "Розетка разомкнута",
         chargeSubStale: "Свежих показаний розетки нет",
         chargeVoltage: "Напряжение линии", chargeCurrent: "Ток", chargePower: "Мощность", chargeEnergy: "Энергия",
-        chargeNote: "Две зарядки, 25 А и 20 А, включены в одну розетку на линии щитка. Это напряжение, ток и мощность сети 230 В, не клеммы АКБ.",
+        chargeNote: "Две зарядки, 25 А и 20 А, включены в одну розетку на линии щитка. Напряжение, ток и мощность — это сеть 230 В, не клеммы АКБ. Энергия — счётчик самой розетки в кВт·ч с последнего сброса, сайт его не вычисляет.",
         chargeUpdated: "Обновлено", chargeWaiting: "Ожидание данных...", 
         gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние 7 дней",
@@ -57,7 +57,7 @@ export const translations = {
         chargeSubOff: "Розетка розімкнена",
         chargeSubStale: "Свіжих показів розетки немає",
         chargeVoltage: "Напруга лінії", chargeCurrent: "Струм", chargePower: "Потужність", chargeEnergy: "Енергія",
-        chargeNote: "Дві зарядки, 25 А і 20 А, включені в одну розетку на лінії щитка. Це напруга, струм і потужність мережі 230 В, не клеми АКБ.",
+        chargeNote: "Дві зарядки, 25 А і 20 А, включені в одну розетку на лінії щитка. Напруга, струм і потужність — це мережа 230 В, не клеми АКБ. Енергія — лічильник самої розетки в кВт·год з останнього скидання, сайт його не рахує.",
         chargeUpdated: "Оновлено", chargeWaiting: "Очікування даних...", 
         gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні 7 днів",
@@ -95,7 +95,7 @@ export const translations = {
         chargeSubOff: "The plug is off",
         chargeSubStale: "No fresh reading from the plug",
         chargeVoltage: "Line voltage", chargeCurrent: "Current", chargePower: "Power", chargeEnergy: "Energy",
-        chargeNote: "Two chargers, 25 A and 20 A, share one plug on the panel line. These are 230 V mains voltage, current and power, not the battery terminals.",
+        chargeNote: "Two chargers, 25 A and 20 A, share one plug on the panel line. Voltage, current and power are the 230 V mains, not the battery terminals. Energy is the plug's own kWh counter since its last reset; the site does not calculate it.",
         chargeUpdated: "Updated", chargeWaiting: "Waiting for data...", 
         gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last 7 days",
@@ -263,7 +263,7 @@ function updateThemeIcon() {
 }
 
 const CHARGE_ACTIVE_WATTS = 10;
-const CHARGE_FRESH_MS = 90000;
+const CHARGE_FRESH_MS = 8 * 60 * 1000;
 
 export function renderCharge(reading, lang) {
     const t = translations[lang] || translations.uk;
@@ -307,15 +307,17 @@ export function renderCharge(reading, lang) {
         : null;
     const fresh = stamp && (Date.now() - stamp.getTime()) < CHARGE_FRESH_MS;
     const power = Number(reading.power);
+    const chargingNow = fresh && reading.on && power >= CHARGE_ACTIVE_WATTS;
     if (!fresh) paint('gray', t.chargeStale, t.chargeSubStale);
     else if (!reading.on) paint('gray', t.chargeOff, t.chargeSubOff);
-    else if (power >= CHARGE_ACTIVE_WATTS) paint('green', t.chargeOn, t.chargeSubOn);
+    else if (chargingNow) paint('green', t.chargeOn, t.chargeSubOn);
     else paint('amber', t.chargeIdle, t.chargeSubIdle);
 
-    setValue('charge-voltage', Number.isFinite(Number(reading.voltage)) ? Number(reading.voltage).toFixed(1) : '--');
-    setValue('charge-current', Number.isFinite(Number(reading.current)) ? Number(reading.current).toFixed(3) : '--');
-    setValue('charge-power', Number.isFinite(power) ? power.toFixed(1) : '--');
-    setValue('charge-energy', Number.isFinite(Number(reading.energy)) ? Number(reading.energy).toFixed(3) : '--');
+    const liveNumber = (value, digits) => Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : '--';
+    setValue('charge-voltage', fresh ? liveNumber(reading.voltage, 1) : '--');
+    setValue('charge-current', chargingNow ? liveNumber(reading.current, 3) : '0.000');
+    setValue('charge-power', chargingNow ? liveNumber(power, 1) : '0.0');
+    setValue('charge-energy', liveNumber(reading.energy, 3));
     if (updated) {
         updated.textContent = stamp
             ? `${t.chargeUpdated}: ${stamp.toLocaleTimeString([], { hour12: false })}`
