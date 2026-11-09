@@ -11,6 +11,7 @@
     #include <esp_task_wdt.h>
     #include <time.h>
     #include <Preferences.h>
+    #include "TuyaPlug.h"
 
     // ================= НАСТРОЙКИ =================
     bool ENABLE_WIFI = true;
@@ -96,6 +97,7 @@
     void tickLed();
     void maintainWifi();
     bool pzemSamplePlausible(double voltage, double current, double power, double energy);
+    void serviceEcoFlowPlug();
 
     bool hasAcceptedPzemEnergy = false;
     double lastAcceptedPzemEnergy = 0;
@@ -544,7 +546,113 @@
                     SerialMon.println("Routine send failed — retry on next interval");
             }
         }
+        serviceEcoFlowPlug();
         delay(100);
+    }
+
+    unsigned long plugIntervalMs = 30000;
+    char plugIp[40] = "192.168.31.205";
+
+    bool plugAddressOk(const String &ip)
+    {
+        int parts = 0;
+        int start = 0;
+        if (ip.length() < 7 || ip.length() > 15)
+            return false;
+        for (int i = 0; i <= ip.length(); i++)
+        {
+            if (i < ip.length() && ip.charAt(i) != '.')
+            {
+                if (!isDigit(ip.charAt(i)))
+                    return false;
+                continue;
+            }
+            int len = i - start;
+            if (len < 1 || len > 3)
+                return false;
+            int value = ip.substring(start, i).toInt();
+            if (value > 255)
+                return false;
+            parts++;
+            start = i + 1;
+        }
+        return parts == 4;
+    }
+
+    void refreshPlugSettings()
+    {
+        if (!Firebase.Firestore.getDocument(&fbdo, FIREBASE_PROJECT_ID, "", "esp32_settings/config"))
+            return;
+
+        FirebaseJson json;
+        FirebaseJsonData result;
+        json.setJsonData(fbdo.payload());
+
+        if (json.get(result, "fields/plug_interval/integerValue") || json.get(result, "fields/plug_interval/doubleValue"))
+        {
+            int seconds = result.stringValue.toInt();
+            if (seconds <= 0)
+                seconds = result.intValue;
+            if (seconds >= 5 && seconds <= 3600)
+                plugIntervalMs = (unsigned long)seconds * 1000UL;
+        }
+        if (json.get(result, "fields/plug_ip/stringValue"))
+        {
+            String ip = result.stringValue;
+            ip.trim();
+            if (plugAddressOk(ip))
+                ip.toCharArray(plugIp, sizeof(plugIp));
+        }
+    }
+
+    void serviceEcoFlowPlug()
+    {
+        static unsigned long lastAttemptMs = 0;
+        const char *plugId = "bff5913ba7818e2341cfml";
+        const char *plugKey = "IV/!w.`edyfp@Agh";
+
+        if (mainsChangeMs != 0)
+            return;
+        if (!ENABLE_WIFI || WiFi.status() != WL_CONNECTED || !Firebase.ready())
+            return;
+        if (millis() - lastAttemptMs < plugIntervalMs)
+            return;
+
+        lastAttemptMs = millis();
+        esp_task_wdt_reset();
+        refreshPlugSettings();
+        esp_task_wdt_reset();
+
+        EcoFlowReading reading;
+        if (!ecoFlowRead(plugIp, 6668, plugId, plugKey, reading))
+        {
+            SerialMon.println("ecoFlow: no reading");
+            esp_task_wdt_reset();
+            return;
+        }
+
+        time_t now = time(nullptr);
+        struct tm utc;
+        char iso[25] = "1970-01-01T00:00:00Z";
+        if (gmtime_r(&now, &utc))
+            strftime(iso, sizeof(iso), "%Y-%m-%dT%H:%M:%SZ", &utc);
+
+        String timeStr = getCurrentTime();
+        SerialMon.printf("ecoFlow: %.1f V, %.3f A, %.1f W, %.3f kWh\n",
+                         reading.voltage, reading.current, reading.power, reading.energy);
+
+        FirebaseJson content;
+        content.set("fields/voltage/doubleValue", reading.voltage);
+        content.set("fields/current/doubleValue", reading.current);
+        content.set("fields/power/doubleValue", reading.power);
+        content.set("fields/energy/doubleValue", reading.energy);
+        content.set("fields/on/booleanValue", reading.on);
+        content.set("fields/created_at/stringValue", timeStr);
+        content.set("fields/timestamp/timestampValue", iso);
+
+        if (!writeFirestore("lifepo_charge", content))
+            SerialMon.printf("ecoFlow firebase: %s\n", fbdo.errorReason().c_str());
+        esp_task_wdt_reset();
     }
 
     bool sendSmart(int val, String deviceStatus, int batLevel, float voltage)

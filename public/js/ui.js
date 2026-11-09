@@ -4,10 +4,23 @@ export const translations = {
     ru: {
         subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", 
         powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от АКБ", subOff: "Нет сети и резерв не работает",
-        runtimeTitle: "Запас LiFePO4", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт",
+        runtimeTitle: "Запас LiFePO4", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт · осталось ≈ {time}",
+        runtimeCharge: "ЗАРЯДКА", runtimeDischarge: "РАЗРЯД", runtimeIdle: "ПОКОЙ", runtimeNoLink: "НЕТ ДАННЫХ", unitW: "Вт",
+        runtimeChargeNote: "Зарядки берут {power} Вт из линии щитка · {volt} В · {amp} А. Процент на клеммах розетка не измеряет.",
+        runtimeIdleNote: "Линия есть, зарядки почти не потребляют.",
+        runtimeNoLinkNote: "Жду показания розетки ecoFlow.",
         voltLabel: "Напряжение", powerLabel: "Мощность", 
         battery: "Заряд АКБ 18650", event: "Событие", history: "История событий", updated: "Обновлено", error: "Ошибка доступа", noData: "Нет данных", 
-        lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе", 
+        lastOn: "Посл. ВКЛ", lastOff: "Посл. ВЫКЛ", mHome: "Главная", mMonitoring: "Энергомониторинг", mCharge: "Зарядка LiFePO", mGraphs: "Графики", mSettings: "Настройки", mAbout: "О системе",
+        chargeWait: "ОЖИДАНИЕ", chargeOn: "ЗАРЯДКА", chargeIdle: "ПРОСТОЙ", chargeOff: "РОЗЕТКА ВЫКЛ", chargeStale: "НЕТ СВЯЗИ",
+        chargeSubWait: "Розетка ecoFlow ещё не прислала показания",
+        chargeSubOn: "Обе зарядки потребляют ток из линии щитка",
+        chargeSubIdle: "Линия под напряжением, зарядки почти не потребляют",
+        chargeSubOff: "Розетка разомкнута",
+        chargeSubStale: "Свежих показаний розетки нет",
+        chargeVoltage: "Напряжение линии", chargeCurrent: "Ток", chargePower: "Мощность", chargeEnergy: "Энергия",
+        chargeNote: "Две зарядки, 25 А и 20 А, включены в одну розетку на линии щитка. Это напряжение, ток и мощность сети 230 В, не клеммы АКБ.",
+        chargeUpdated: "Обновлено", chargeWaiting: "Ожидание данных...", 
         gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние 7 дней",
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
@@ -22,15 +35,30 @@ export const translations = {
         stPzemTitle: "Интервал счетчика", stPzemDesc: "Как часто отправляются данные напряжения и мощности (сек).", 
         btnSavePzem: "Сохранить", stPzemInfo: "Изменения вступят в силу после следующего сеанса связи.",
         stBatteryTitle: "Ёмкость АКБ 12В", stBatteryDesc: "Суммарная ёмкость всех батарей 12 В, кВт·ч.",
-        btnSaveBattery: "Сохранить", stBatteryInfo: "Оценка запаса на главной пересчитывается сразу."
+        btnSaveBattery: "Сохранить", stBatteryInfo: "Оценка запаса на главной пересчитывается сразу.",
+        stPlugTitle: "Розетка зарядки", stPlugDesc: "Как часто опрашивать розетку ecoFlow и по какому адресу в сети.",
+        btnSavePlug: "Сохранить", stPlugInfo: "Плата применит адрес и интервал со следующего опроса."
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
         powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від АКБ", subOff: "Немає мережі і резерв не працює",
-        runtimeTitle: "Запас LiFePO4", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт",
+        runtimeTitle: "Запас LiFePO4", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт · залишилось ≈ {time}",
+        runtimeCharge: "ЗАРЯДКА", runtimeDischarge: "РОЗРЯД", runtimeIdle: "СПОКІЙ", runtimeNoLink: "НЕМАЄ ДАНИХ", unitW: "Вт",
+        runtimeChargeNote: "Зарядки беруть {power} Вт з лінії щитка · {volt} В · {amp} А. Відсоток на клемах розетка не вимірює.",
+        runtimeIdleNote: "Лінія є, зарядки майже не споживають.",
+        runtimeNoLinkNote: "Чекаю на покази розетки ecoFlow.",
         voltLabel: "Напруга", powerLabel: "Потужність", 
         battery: "Заряд АКБ 18650", event: "Подія", history: "Історія подій", updated: "Оновлено", error: "Помилка доступу", noData: "Немає даних", 
-        lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему", 
+        lastOn: "Ост. УВІМК", lastOff: "Ост. ВИМК", mHome: "Головна", mMonitoring: "Енергомоніторинг", mCharge: "Зарядка LiFePO", mGraphs: "Графіки", mSettings: "Налаштування", mAbout: "Про систему",
+        chargeWait: "ОЧІКУВАННЯ", chargeOn: "ЗАРЯДКА", chargeIdle: "ПРОСТІЙ", chargeOff: "РОЗЕТКА ВИМК", chargeStale: "НЕМАЄ ЗВ'ЯЗКУ",
+        chargeSubWait: "Розетка ecoFlow ще не надіслала показів",
+        chargeSubOn: "Обидві зарядки беруть струм з лінії щитка",
+        chargeSubIdle: "Лінія під напругою, зарядки майже не споживають",
+        chargeSubOff: "Розетка розімкнена",
+        chargeSubStale: "Свіжих показів розетки немає",
+        chargeVoltage: "Напруга лінії", chargeCurrent: "Струм", chargePower: "Потужність", chargeEnergy: "Енергія",
+        chargeNote: "Дві зарядки, 25 А і 20 А, включені в одну розетку на лінії щитка. Це напруга, струм і потужність мережі 230 В, не клеми АКБ.",
+        chargeUpdated: "Оновлено", chargeWaiting: "Очікування даних...", 
         gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні 7 днів",
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
@@ -45,15 +73,30 @@ export const translations = {
         stPzemTitle: "Інтервал лічильника", stPzemDesc: "Як часто надсилаються дані напруги та потужності (сек).", 
         btnSavePzem: "Зберегти", stPzemInfo: "Зміни набудуть чинності після наступного сеансу зв'язку.",
         stBatteryTitle: "Ємність АКБ 12В", stBatteryDesc: "Сумарна ємність усіх батарей 12 В, кВт·год.",
-        btnSaveBattery: "Зберегти", stBatteryInfo: "Оцінка запасу на головній перераховується одразу."
+        btnSaveBattery: "Зберегти", stBatteryInfo: "Оцінка запасу на головній перераховується одразу.",
+        stPlugTitle: "Розетка зарядки", stPlugDesc: "Як часто опитувати розетку ecoFlow і за якою адресою в мережі.",
+        btnSavePlug: "Зберегти", stPlugInfo: "Плата застосує адресу та інтервал з наступного опитування."
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
         powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on the battery", subOff: "No grid and the backup is off",
-        runtimeTitle: "LiFePO4 reserve", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W",
+        runtimeTitle: "LiFePO4 reserve", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W · about {time} left",
+        runtimeCharge: "CHARGING", runtimeDischarge: "DISCHARGING", runtimeIdle: "IDLE", runtimeNoLink: "NO DATA", unitW: "W",
+        runtimeChargeNote: "The chargers draw {power} W from the panel line · {volt} V · {amp} A. The plug does not measure cell percent.",
+        runtimeIdleNote: "The line is live and the chargers are drawing almost nothing.",
+        runtimeNoLinkNote: "Waiting for the ecoFlow plug.",
         voltLabel: "Voltage", powerLabel: "Power", 
         battery: "18650 battery", event: "Event", history: "Event History", updated: "Updated", error: "Access Error", noData: "No Data", 
-        lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mGraphs: "Charts", mSettings: "Settings", mAbout: "About", 
+        lastOn: "Last ON", lastOff: "Last OFF", mHome: "Home", mMonitoring: "Energy Monitor", mCharge: "LiFePO charging", mGraphs: "Charts", mSettings: "Settings", mAbout: "About",
+        chargeWait: "WAITING", chargeOn: "CHARGING", chargeIdle: "IDLE", chargeOff: "PLUG OFF", chargeStale: "NO LINK",
+        chargeSubWait: "The ecoFlow plug has not reported yet",
+        chargeSubOn: "Both chargers are drawing from the panel line",
+        chargeSubIdle: "The line is live, the chargers are drawing almost nothing",
+        chargeSubOff: "The plug is off",
+        chargeSubStale: "No fresh reading from the plug",
+        chargeVoltage: "Line voltage", chargeCurrent: "Current", chargePower: "Power", chargeEnergy: "Energy",
+        chargeNote: "Two chargers, 25 A and 20 A, share one plug on the panel line. These are 230 V mains voltage, current and power, not the battery terminals.",
+        chargeUpdated: "Updated", chargeWaiting: "Waiting for data...", 
         gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last 7 days",
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
@@ -68,13 +111,15 @@ export const translations = {
         stPzemTitle: "Meter Interval", stPzemDesc: "How often voltage and power data is sent (sec).", 
         btnSavePzem: "Save", stPzemInfo: "Changes will take effect after the next connection.",
         stBatteryTitle: "12V battery capacity", stBatteryDesc: "Total capacity of all 12V batteries, kWh.",
-        btnSaveBattery: "Save", stBatteryInfo: "The home estimate updates immediately."
+        btnSaveBattery: "Save", stBatteryInfo: "The home estimate updates immediately.",
+        stPlugTitle: "Charging plug", stPlugDesc: "How often to poll the ecoFlow plug, and its address on the network.",
+        btnSavePlug: "Save", stPlugInfo: "The board applies the address and interval on the next poll."
     }
 };
 
 export function initUI(config) {
     // Setup Navigation
-    const navs = ['home', 'monitoring', 'graphs', 'settings'];
+    const navs = ['home', 'monitoring', 'charge', 'graphs', 'settings'];
     navs.forEach(view => {
         const navEl = document.getElementById(`nav-${view}`);
         if(navEl) {
@@ -129,7 +174,7 @@ export function initUI(config) {
 }
 
 export function showView(viewName) {
-    const views = ['home', 'monitoring', 'graphs', 'settings'];
+    const views = ['home', 'monitoring', 'charge', 'graphs', 'settings'];
 
     views.forEach(v => {
         const el = document.getElementById(`view-${v}`);
@@ -177,7 +222,7 @@ export function applyLanguage(lang) {
         't-subtitle': t.subtitle, 't-battery': t.battery, 't-reserve-runtime': t.runtimeTitle, 't-event': t.event,
         't-history': t.history, 't-last-on': t.lastOn, 't-last-off': t.lastOff,
         't-graph-title': t.gTitle, 't-stats-title': t.gStatsTitle, 't-data-info': t.dataInfo,
-        'm-home': t.mHome, 'm-monitoring': t.mMonitoring, 'm-graphs': t.mGraphs, 
+        'm-home': t.mHome, 'm-monitoring': t.mMonitoring, 'm-charge': t.mCharge, 'm-graphs': t.mGraphs, 
         'm-settings': t.mSettings, 'm-about': t.mAbout,
         't-mon-voltage': t.monVoltage, 't-mon-power': t.monPower, 't-mon-energy': t.monEnergy, 't-mon-daily': t.monDaily,
         'btn-range-day': t.btnDay, 'btn-range-week': t.btnWeek, 'btn-range-month': t.btnMonth,
@@ -193,7 +238,14 @@ export function applyLanguage(lang) {
         't-set-battery-title': t.stBatteryTitle,
         't-set-battery-desc': t.stBatteryDesc,
         't-btn-save-battery': t.btnSaveBattery,
-        't-set-battery-info': t.stBatteryInfo
+        't-set-battery-info': t.stBatteryInfo,
+        't-set-plug-title': t.stPlugTitle,
+        't-set-plug-desc': t.stPlugDesc,
+        't-btn-save-plug': t.btnSavePlug,
+        't-set-plug-info': t.stPlugInfo,
+        't-charge-voltage': t.chargeVoltage, 't-charge-current': t.chargeCurrent,
+        't-charge-power': t.chargePower, 't-charge-energy': t.chargeEnergy,
+        'charge-note': t.chargeNote
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
@@ -207,6 +259,67 @@ function updateThemeIcon() {
         themeIcon.classList.remove("fa-moon"); themeIcon.classList.add("fa-sun");
     } else {
         themeIcon.classList.remove("fa-sun"); themeIcon.classList.add("fa-moon");
+    }
+}
+
+const CHARGE_ACTIVE_WATTS = 10;
+const CHARGE_FRESH_MS = 90000;
+
+export function renderCharge(reading, lang) {
+    const t = translations[lang] || translations.uk;
+    const card = document.getElementById('charge-status-card');
+    const icon = document.getElementById('charge-status-icon');
+    const title = document.getElementById('charge-status-text');
+    const sub = document.getElementById('charge-status-sub');
+    const updated = document.getElementById('charge-updated');
+    if (!card || !title) return;
+
+    const paint = (tone, heading, detail) => {
+        const tones = {
+            green: ['bg-green-100', 'border-green-200', 'dark:bg-green-900/30', 'dark:border-green-800', 'bg-green-500', 'text-green-700', 'dark:text-green-300'],
+            amber: ['bg-amber-100', 'border-amber-200', 'dark:bg-amber-900/30', 'dark:border-amber-800', 'bg-amber-500', 'text-amber-700', 'dark:text-amber-300'],
+            gray: ['bg-gray-100', 'border-gray-200', 'dark:bg-gray-800', 'dark:border-gray-700', 'bg-gray-500', 'text-gray-700', 'dark:text-gray-300']
+        };
+        card.className = `rounded-2xl p-6 text-center border ${tones[tone].slice(0, 4).join(' ')}`;
+        icon.className = `relative inline-flex rounded-full h-16 w-16 ${tones[tone][4]} items-center justify-center text-white text-2xl shadow-lg mb-4`;
+        title.className = `text-2xl font-bold ${tones[tone][5]} ${tones[tone][6]}`;
+        title.textContent = heading;
+        sub.textContent = detail;
+    };
+
+    const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    };
+
+    if (!reading) {
+        paint('gray', t.chargeWait, t.chargeSubWait);
+        setValue('charge-voltage', '--');
+        setValue('charge-current', '--');
+        setValue('charge-power', '--');
+        setValue('charge-energy', '--');
+        if (updated) updated.textContent = t.chargeWaiting;
+        return;
+    }
+
+    const stamp = reading.timestamp && typeof reading.timestamp.toDate === 'function'
+        ? reading.timestamp.toDate()
+        : null;
+    const fresh = stamp && (Date.now() - stamp.getTime()) < CHARGE_FRESH_MS;
+    const power = Number(reading.power);
+    if (!fresh) paint('gray', t.chargeStale, t.chargeSubStale);
+    else if (!reading.on) paint('gray', t.chargeOff, t.chargeSubOff);
+    else if (power >= CHARGE_ACTIVE_WATTS) paint('green', t.chargeOn, t.chargeSubOn);
+    else paint('amber', t.chargeIdle, t.chargeSubIdle);
+
+    setValue('charge-voltage', Number.isFinite(Number(reading.voltage)) ? Number(reading.voltage).toFixed(1) : '--');
+    setValue('charge-current', Number.isFinite(Number(reading.current)) ? Number(reading.current).toFixed(3) : '--');
+    setValue('charge-power', Number.isFinite(power) ? power.toFixed(1) : '--');
+    setValue('charge-energy', Number.isFinite(Number(reading.energy)) ? Number(reading.energy).toFixed(3) : '--');
+    if (updated) {
+        updated.textContent = stamp
+            ? `${t.chargeUpdated}: ${stamp.toLocaleTimeString([], { hour12: false })}`
+            : t.chargeWaiting;
     }
 }
 
@@ -409,36 +522,99 @@ function formatRuntime(hours) {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function renderReserveRuntime(reading, todayStartEnergy, currentLang, capacityKwh = 1.2) {
+export function renderReserveRuntime(reading, todayStartEnergy, currentLang, capacityKwh = 1.2, chargeReading = null) {
     const card = document.getElementById("reserve-runtime");
-    if (!card) return;
-    const t = translations[currentLang];
-    const capacity = Number(capacityKwh);
-    const usableKwh = Number.isFinite(capacity) && capacity > 0 ? capacity : 1.2;
-    if (!reading || classifySupply(reading) !== "reserve") {
-        card.classList.add("hidden");
-        return;
-    }
-
-    card.classList.remove("hidden");
     const valueEl = document.getElementById("reserve-runtime-value");
     const noteEl = document.getElementById("reserve-runtime-note");
-    const power = Number(reading.power);
-    const energy = Number(reading.energy);
-    const start = Number(todayStartEnergy);
-    const usedWh = Number.isFinite(energy) && Number.isFinite(start) ? Math.max(0, (energy - start) * 1000) : null;
-    if (usedWh === null || !Number.isFinite(power) || power <= 0) {
-        valueEl.innerText = "--:--";
-        noteEl.innerText = t.runtimeWait;
+    const statusEl = document.getElementById("reserve-runtime-status");
+    const barEl = document.getElementById("reserve-runtime-bar");
+    if (!card || !valueEl || !noteEl || !statusEl || !barEl) return;
+
+    const t = translations[currentLang] || translations.uk;
+    const capacity = Number(capacityKwh);
+    const usableKwh = Number.isFinite(capacity) && capacity > 0 ? capacity : 1.2;
+    const stamp = chargeReading?.timestamp && typeof chargeReading.timestamp.toDate === "function"
+        ? chargeReading.timestamp.toDate()
+        : null;
+    const chargeFresh = stamp && (Date.now() - stamp.getTime()) < CHARGE_FRESH_MS;
+    const chargePower = Number(chargeReading?.power);
+    const charging = chargeFresh && chargeReading.on && chargePower >= CHARGE_ACTIVE_WATTS;
+    const onReserve = reading && classifySupply(reading) === "reserve";
+
+    const paint = (tone, status, value, note, barPercent, barClass) => {
+        const tones = {
+            green: "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800",
+            amber: "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800",
+            gray: "bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+        };
+        const statusTones = {
+            green: "text-green-600 dark:text-green-300",
+            amber: "text-amber-700 dark:text-amber-300",
+            gray: "text-gray-400"
+        };
+        card.className = `rounded-2xl p-5 shadow-sm ${tones[tone]}`;
+        statusEl.className = `text-xs font-bold uppercase tracking-wider ${statusTones[tone]}`;
+        statusEl.textContent = status;
+        valueEl.textContent = value;
+        noteEl.textContent = note;
+        barEl.style.width = `${Math.max(0, Math.min(100, barPercent))}%`;
+        barEl.className = `${barClass} h-2.5 rounded-full transition-all duration-700`;
+    };
+
+    if (onReserve) {
+        const power = Number(reading.power);
+        const energy = Number(reading.energy);
+        const start = Number(todayStartEnergy);
+        const usedWh = Number.isFinite(energy) && Number.isFinite(start) ? Math.max(0, (energy - start) * 1000) : null;
+        if (usedWh === null || !Number.isFinite(power) || power <= 0) {
+            paint("amber", t.runtimeDischarge, "--%", t.runtimeWait, 0, "bg-amber-500");
+            return;
+        }
+        const remainingWh = Math.max(0, usableKwh * 1000 - usedWh);
+        const pct = Math.round((remainingWh / (usableKwh * 1000)) * 100);
+        paint(
+            "amber",
+            t.runtimeDischarge,
+            `${pct}%`,
+            t.runtimeNote
+                .replace("{today}", (usedWh / 1000).toFixed(3))
+                .replace("{capacity}", usableKwh.toFixed(3))
+                .replace("{power}", power.toFixed(0))
+                .replace("{time}", formatRuntime(remainingWh / power)),
+            pct,
+            "bg-amber-500"
+        );
         return;
     }
 
-    const remainingWh = Math.max(0, usableKwh * 1000 - usedWh);
-    valueEl.innerText = `≈ ${formatRuntime(remainingWh / power)}`;
-    noteEl.innerText = t.runtimeNote
-        .replace("{today}", (usedWh / 1000).toFixed(3))
-        .replace("{capacity}", usableKwh.toFixed(3))
-        .replace("{power}", power.toFixed(0));
+    if (!chargeFresh) {
+        paint("gray", t.runtimeNoLink, "--", t.runtimeNoLinkNote, 0, "bg-gray-400");
+        return;
+    }
+
+    if (charging) {
+        paint(
+            "green",
+            t.runtimeCharge,
+            `${chargePower.toFixed(0)} ${t.unitW}`,
+            t.runtimeChargeNote
+                .replace("{power}", chargePower.toFixed(0))
+                .replace("{volt}", Number(chargeReading.voltage).toFixed(1))
+                .replace("{amp}", Number(chargeReading.current).toFixed(2)),
+            Math.min(100, Math.round(chargePower / 8)),
+            "bg-green-500"
+        );
+        return;
+    }
+
+    paint(
+        "gray",
+        t.runtimeIdle,
+        `${Number.isFinite(chargePower) ? chargePower.toFixed(0) : "0"} ${t.unitW}`,
+        t.runtimeIdleNote,
+        8,
+        "bg-gray-400"
+    );
 }
 
 export function renderHome(docs, currentLang) {

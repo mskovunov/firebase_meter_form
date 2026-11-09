@@ -1,6 +1,6 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=15';
+import * as UI from './ui.js?v=2.0911.2222';
 import * as Charts from './charts.js?v=16';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -29,6 +29,8 @@ let cachedSupplyEdges = null;
 let inverterOffAt = null;
 let mainUnsubscribe = null;
 let batteryCapacityKwh = 1.2;
+let latestChargeReading = null;
+let chargeUnsubscribe = null;
 
 const HOME_EVENT_LIMIT = 30;
 const SUPPLY_EDGE_LIMIT = 120;
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
     startSupplyEdgesListener();
+    startChargeListener();
     fetchTodayStart();
     loadSettingsFromDB();
     
@@ -81,6 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.saveBatteryCapacity = () => {
         saveBatteryCapacityToDB();
     };
+    window.savePlugSettings = () => {
+        savePlugSettingsToDB();
+    };
 });
 
 // === LOGIC ===
@@ -91,6 +97,10 @@ function handleViewChange(viewName) {
     if (viewName === 'monitoring') {
         startMonitoringListener();
         fetchTodayStart();
+    }
+
+    if (viewName === 'charge') {
+        startChargeListener();
     }
 
     // 3. ЯКЩО ВІДКРИЛИ НАЛАШТУВАННЯ - ВАНТАЖИМО ДАНІ
@@ -287,7 +297,13 @@ function paintLiveSupply() {
     rememberInverterOff(latestSupplyReading);
     const shown = UI.supplyReadingForDisplay(latestSupplyReading, currentDocs);
     UI.renderSupplyStatus(shown, currentLang);
-    UI.renderReserveRuntime(shown, todayStartEnergy, currentLang, batteryCapacityKwh);
+    UI.renderReserveRuntime(
+        latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
+        todayStartEnergy,
+        currentLang,
+        batteryCapacityKwh,
+        latestChargeReading
+    );
     if (cachedSupplyEdges || inverterOffAt || confirmedSilence) UI.renderSupplyEdgeResult(edgesForDisplay());
     lookupSilenceGap();
 }
@@ -327,7 +343,7 @@ async function lookupSilenceGap() {
             UI.renderSupplyEdgeResult(edgesForDisplay());
             return;
         }
-        if (checked >= 5) return;
+        if (checked >= 60 || previousAt < Date.now() - 36 * 60 * 60 * 1000) return;
     }
 }
 
@@ -480,6 +496,36 @@ function refreshData() {
     if (latestSupplyReading) paintLiveSupply();
     else if (cachedSupplyEdges || inverterOffAt) UI.renderSupplyEdgeResult(edgesForDisplay());
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
+    UI.renderReserveRuntime(
+        latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
+        todayStartEnergy,
+        currentLang,
+        batteryCapacityKwh,
+        latestChargeReading
+    );
+}
+
+function startChargeListener() {
+    if (chargeUnsubscribe) {
+        UI.renderCharge(latestChargeReading, currentLang);
+        return;
+    }
+    const qCharge = query(collection(db, "lifepo_charge"), orderBy("timestamp", "desc"), limit(1));
+    chargeUnsubscribe = onSnapshot(qCharge, (snapshot) => {
+        latestChargeReading = snapshot.empty ? null : snapshot.docs[0].data();
+        UI.renderCharge(latestChargeReading, currentLang);
+        UI.renderReserveRuntime(
+            latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
+            todayStartEnergy,
+            currentLang,
+            batteryCapacityKwh,
+            latestChargeReading
+        );
+    }, (err) => {
+        console.error("Charge listener error:", err);
+        latestChargeReading = null;
+        UI.renderCharge(null, currentLang);
+    });
 }
 
 // === MONITORING LOGIC ===
@@ -571,6 +617,8 @@ async function loadSettingsFromDB() {
     const inputMain = document.getElementById('input-interval');
     const inputPzem = document.getElementById('input-pzem-interval');
     const inputBattery = document.getElementById('input-battery-capacity');
+    const inputPlugInterval = document.getElementById('input-plug-interval');
+    const inputPlugIp = document.getElementById('input-plug-ip');
     
     inputMain.disabled = true;
     inputMain.classList.add('opacity-50');
@@ -582,6 +630,11 @@ async function loadSettingsFromDB() {
         inputBattery.disabled = true;
         inputBattery.classList.add('opacity-50');
     }
+    [inputPlugInterval, inputPlugIp].forEach((input) => {
+        if (!input) return;
+        input.disabled = true;
+        input.classList.add('opacity-50');
+    });
 
     try {
         const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
@@ -605,6 +658,13 @@ async function loadSettingsFromDB() {
             } else if (inputBattery && !inputBattery.value) {
                 inputBattery.value = batteryCapacityKwh;
             }
+            const plugInterval = Number(data.plug_interval);
+            if (inputPlugInterval && Number.isFinite(plugInterval) && plugInterval >= 5) {
+                inputPlugInterval.value = plugInterval;
+            }
+            if (inputPlugIp && typeof data.plug_ip === 'string' && data.plug_ip.trim()) {
+                inputPlugIp.value = data.plug_ip.trim();
+            }
         } else {
             console.log("No settings doc found!");
         }
@@ -622,6 +682,11 @@ async function loadSettingsFromDB() {
             inputBattery.classList.remove('opacity-50');
             if (!inputBattery.value) inputBattery.value = batteryCapacityKwh;
         }
+        [inputPlugInterval, inputPlugIp].forEach((input) => {
+            if (!input) return;
+            input.disabled = false;
+            input.classList.remove('opacity-50');
+        });
     }
 }
 
@@ -705,6 +770,54 @@ async function savePzemSettingsToDB() {
 
     } catch (e) {
         console.error("Error saving PZEM settings:", e);
+        status.innerText = UI.translations[currentLang].msgError || "Error!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-red-500";
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalBtnText;
+    }
+}
+
+function validPlugIp(value) {
+    const parts = String(value || '').trim().split('.');
+    if (parts.length !== 4) return false;
+    return parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
+}
+
+async function savePlugSettingsToDB() {
+    const inputInterval = document.getElementById('input-plug-interval');
+    const inputIp = document.getElementById('input-plug-ip');
+    const status = document.getElementById('plug-settings-status');
+    const interval = parseInt(inputInterval.value, 10);
+    const ip = inputIp.value.trim();
+
+    if (!interval || interval < 5 || interval > 3600) {
+        alert("Interval must be between 5 and 3600 seconds");
+        return;
+    }
+    if (!validPlugIp(ip)) {
+        alert("Enter an address like 192.168.31.205");
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-plug');
+    const originalBtnText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const docRef = doc(db, SETTINGS_COLLECTION, CONFIG_DOC);
+        await setDoc(docRef, {
+            plug_interval: interval,
+            plug_ip: ip,
+            updated_at: new Date()
+        }, { merge: true });
+
+        status.innerText = UI.translations[currentLang].msgSaved || "Saved!";
+        status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-green-500";
+        setTimeout(() => status.classList.add('opacity-0'), 3000);
+    } catch (e) {
+        console.error("Error saving plug settings:", e);
         status.innerText = UI.translations[currentLang].msgError || "Error!";
         status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-red-500";
     } finally {

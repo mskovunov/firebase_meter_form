@@ -1,0 +1,7 @@
+{
+  "name": "plug-read",
+  "private": true,
+  "dependencies": {
+    "tuyapi": "^7.7.1"
+  }
+}

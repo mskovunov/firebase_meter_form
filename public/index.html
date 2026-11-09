@@ -86,6 +86,15 @@
             <li>
               <a
                 href="#"
+                id="nav-charge"
+                class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200"
+                ><i class="fas fa-car-battery text-green-500 w-6"></i
+                ><span id="m-charge">Зарядка LiFePO</span></a
+              >
+            </li>
+            <li>
+              <a
+                href="#"
                 id="nav-graphs"
                 class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition text-gray-700 dark:text-gray-200"
                 ><i class="fas fa-chart-line text-blue-500 w-6"></i
@@ -114,7 +123,7 @@
         <div
           class="p-4 border-t border-gray-200 dark:border-gray-700 text-center"
         >
-          <p class="text-xs text-gray-400">Ver 2.0811.2057</p>
+          <p class="text-xs text-gray-400">Ver 2.0911.2222</p>
         </div>
       </aside>
 
@@ -221,21 +230,37 @@
 
           <div
             id="reserve-runtime"
-            class="hidden bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-5 shadow-sm border border-amber-200 dark:border-amber-800"
+            class="bg-gray-50 dark:bg-gray-800 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-700"
           >
-            <div class="flex justify-between items-end">
-              <span class="text-sm font-medium text-amber-700 dark:text-amber-300"
-                ><i class="fas fa-clock mr-2"></i
+            <div class="flex justify-between items-center">
+              <span class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                ><i class="fas fa-car-battery mr-2"></i
                 ><span id="t-reserve-runtime">Запас LiFePO4</span></span
               ><span
-                id="reserve-runtime-value"
-                class="text-2xl font-bold text-amber-600 dark:text-amber-200"
-                >--:--</span
+                id="reserve-runtime-status"
+                class="text-xs font-bold uppercase tracking-wider text-gray-400"
+                >...</span
               >
+            </div>
+            <div class="mt-3 flex justify-between items-end">
+              <span
+                id="reserve-runtime-value"
+                class="text-3xl font-bold text-gray-800 dark:text-gray-100"
+                >--</span
+              >
+            </div>
+            <div
+              class="mt-3 w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 overflow-hidden"
+            >
+              <div
+                id="reserve-runtime-bar"
+                class="bg-amber-500 h-2.5 rounded-full transition-all duration-700"
+                style="width: 0%"
+              ></div>
             </div>
             <p
               id="reserve-runtime-note"
-              class="mt-2 text-xs text-amber-700/80 dark:text-amber-200/70"
+              class="mt-2 text-xs text-gray-500 dark:text-gray-400"
             ></p>
           </div>
 
@@ -441,6 +466,99 @@
                 </li>
               </ul>
             </div>
+          </div>
+        </div>
+
+        <div
+          id="view-charge"
+          class="hidden flex-col gap-4 h-full transition-opacity duration-300 overflow-y-auto custom-scroll pb-10"
+        >
+          <div
+            id="charge-status-card"
+            class="bg-gray-100 border border-gray-200 rounded-2xl p-6 text-center"
+          >
+            <div
+              id="charge-status-icon"
+              class="relative inline-flex rounded-full h-16 w-16 bg-gray-500 items-center justify-center text-white text-2xl shadow-lg mb-4"
+            >
+              <i class="fas fa-car-battery"></i>
+            </div>
+            <h2 id="charge-status-text" class="text-2xl font-bold text-gray-700">
+              ...
+            </h2>
+            <p
+              id="charge-status-sub"
+              class="text-sm text-gray-600 dark:text-gray-300 mt-2 whitespace-pre-line"
+            >
+              ...
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div
+              class="relative overflow-hidden rounded-2xl p-4 shadow-sm border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            >
+              <h3
+                id="t-charge-voltage"
+                class="text-xs font-bold text-orange-500 uppercase tracking-wider mb-1"
+              >
+                Напруга лінії
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="charge-voltage">--</span
+                ><span class="text-sm ml-1 text-gray-400">V</span>
+              </div>
+            </div>
+            <div
+              class="relative overflow-hidden rounded-2xl p-4 shadow-sm border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            >
+              <h3
+                id="t-charge-current"
+                class="text-xs font-bold text-yellow-500 uppercase tracking-wider mb-1"
+              >
+                Струм
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="charge-current">--</span
+                ><span class="text-sm ml-1 text-gray-400">A</span>
+              </div>
+            </div>
+            <div
+              class="relative overflow-hidden rounded-2xl p-4 shadow-sm border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            >
+              <h3
+                id="t-charge-power"
+                class="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1"
+              >
+                Потужність
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="charge-power">--</span
+                ><span class="text-sm ml-1 text-gray-400">W</span>
+              </div>
+            </div>
+            <div
+              class="relative overflow-hidden rounded-2xl p-4 shadow-sm border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            >
+              <h3
+                id="t-charge-energy"
+                class="text-xs font-bold text-purple-500 uppercase tracking-wider mb-1"
+              >
+                Енергія
+              </h3>
+              <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <span id="charge-energy">--</span
+                ><span class="text-sm ml-1 text-gray-400">kWh</span>
+              </div>
+            </div>
+          </div>
+
+          <p id="charge-note" class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+            Дві зарядки, 25 А і 20 А, включені в одну розетку на лінії щитка.
+            Це напруга, струм і потужність мережі 230 В, не клеми АКБ.
+          </p>
+          <div class="text-xs text-center text-gray-400" id="charge-updated">
+            Очікування даних...
           </div>
         </div>
 
@@ -662,6 +780,86 @@
             class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
           >
             <button
+              onclick="window.toggleGraph('plug-settings-content', 'plug-settings-icon')"
+              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
+            >
+              <h2
+                class="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-2"
+              >
+                <i class="fas fa-plug text-green-500"></i>
+                <span id="t-set-plug-title">Розетка зарядки</span>
+              </h2>
+              <i
+                id="plug-settings-icon"
+                class="fas fa-chevron-down text-gray-400 rotate-icon collapsed"
+              ></i>
+            </button>
+            <div id="plug-settings-content" class="accordion-content collapsed">
+              <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <p
+                  id="t-set-plug-desc"
+                  class="text-sm text-gray-500 dark:text-gray-400 mb-4"
+                >
+                  Як часто опитувати розетку ecoFlow і за якою адресою в мережі.
+                </p>
+                <div class="flex flex-col gap-4">
+                  <div class="relative">
+                    <input
+                      type="number"
+                      id="input-plug-interval"
+                      min="5"
+                      max="3600"
+                      value="30"
+                      placeholder="30"
+                      class="w-full p-3 pl-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition font-mono text-lg font-semibold"
+                    />
+                    <span
+                      class="absolute right-4 top-3.5 text-gray-400 text-sm font-bold"
+                      >sec</span
+                    >
+                  </div>
+                  <input
+                    type="text"
+                    id="input-plug-ip"
+                    value="192.168.31.205"
+                    placeholder="192.168.31.205"
+                    spellcheck="false"
+                    class="w-full p-3 pl-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 transition font-mono text-lg font-semibold"
+                  />
+                  <button
+                    onclick="window.savePlugSettings()"
+                    id="btn-save-plug"
+                    class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/30 transition transform active:scale-95 flex justify-center items-center gap-2"
+                  >
+                    <i class="fas fa-save"></i>
+                    <span id="t-btn-save-plug">Зберегти</span>
+                  </button>
+                  <p
+                    id="plug-settings-status"
+                    class="text-center text-sm font-medium h-5 transition-opacity opacity-0 text-green-500"
+                  ></p>
+                </div>
+                <div
+                  class="mt-2 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-900/30 rounded-xl p-3 flex gap-3"
+                >
+                  <i
+                    class="fas fa-info-circle text-yellow-600 dark:text-yellow-500 mt-0.5 text-sm"
+                  ></i>
+                  <p
+                    id="t-set-plug-info"
+                    class="text-xs text-yellow-800 dark:text-yellow-400"
+                  >
+                    Плата застосує адресу та інтервал з наступного опитування.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
               onclick="window.toggleGraph('battery-settings-content', 'battery-settings-icon')"
               class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
             >
@@ -738,6 +936,6 @@
       </footer>
     </div>
 
-    <script type="module" src="js/app.js?v=2.25"></script>
+    <script type="module" src="js/app.js?v=2.0911.2222"></script>
   </body>
 </html>
