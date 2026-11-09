@@ -1,6 +1,6 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.0911.2256';
+import * as UI from './ui.js?v=2.0911.2356';
 import * as Charts from './charts.js?v=16';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -32,6 +32,9 @@ let mainUnsubscribe = null;
 let batteryCapacityKwh = 1.2;
 let latestChargeReading = null;
 let chargeUnsubscribe = null;
+let chargeHistory = [];
+let socMeterDocs = [];
+let chargeBalanceStarted = false;
 
 const HOME_EVENT_LIMIT = 30;
 const SUPPLY_EDGE_LIMIT = 120;
@@ -107,6 +110,7 @@ function handleViewChange(viewName) {
 
     if (viewName === 'charge') {
         startChargeListener();
+        startChargeBalance();
     }
 
     // 3. ЯКЩО ВІДКРИЛИ НАЛАШТУВАННЯ - ВАНТАЖИМО ДАНІ
@@ -504,6 +508,7 @@ function refreshData() {
     if (latestSupplyReading) paintLiveSupply();
     else if (supplyHistoryReady && (cachedSupplyEdges || inverterOffAt)) UI.renderSupplyEdgeResult(edgesForDisplay());
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
+    paintChargeBalance();
     UI.renderReserveRuntime(
         latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
         todayStartEnergy,
@@ -511,6 +516,43 @@ function refreshData() {
         batteryCapacityKwh,
         latestChargeReading
     );
+}
+
+function paintChargeBalance() {
+    if (!chargeBalanceStarted) return;
+    const estimate = (chargeHistory.length || socMeterDocs.length)
+        ? UI.estimateLifepoReserve(socMeterDocs, chargeHistory, batteryCapacityKwh)
+        : null;
+    UI.renderChargeSoc(estimate, currentLang);
+}
+
+function startChargeBalance() {
+    if (chargeBalanceStarted) {
+        paintChargeBalance();
+        return;
+    }
+    chargeBalanceStarted = true;
+    paintChargeBalance();
+    const since = sevenDaysStart();
+    const qHistory = query(
+        collection(db, "lifepo_charge"),
+        where("timestamp", ">=", since),
+        orderBy("timestamp", "asc")
+    );
+    onSnapshot(qHistory, (snapshot) => {
+        chargeHistory = snapshot.docs.map(item => item.data());
+        paintChargeBalance();
+    }, (err) => console.error("Charge balance listener error:", err));
+    const qMeter = query(
+        collection(db, "meter_readings"),
+        where("timestamp_unix", ">=", Math.floor(since.getTime() / 1000)),
+        orderBy("timestamp_unix", "asc")
+    );
+    onSnapshot(qMeter, (snapshot) => {
+        if (snapshot.metadata.fromCache) return;
+        socMeterDocs = snapshot.docs.map(item => item.data());
+        paintChargeBalance();
+    }, (err) => console.error("Charge meter listener error:", err));
 }
 
 function startChargeListener() {
@@ -858,6 +900,7 @@ async function saveBatteryCapacityToDB() {
 
         batteryCapacityKwh = newVal;
         if (latestSupplyReading) paintLiveSupply();
+        paintChargeBalance();
 
         status.innerText = UI.translations[currentLang].msgSaved || "Saved!";
         status.className = "text-center text-sm font-medium h-5 transition-opacity opacity-100 text-green-500";

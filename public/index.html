@@ -123,7 +123,7 @@
         <div
           class="p-4 border-t border-gray-200 dark:border-gray-700 text-center"
         >
-          <p class="text-xs text-gray-400">Ver 2.0911.2256</p>
+          <p class="text-xs text-gray-400">Ver 2.0911.2356</p>
         </div>
       </aside>
 
@@ -553,6 +553,22 @@
             </div>
           </div>
 
+          <div class="rounded-2xl p-4 shadow-sm border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+            <div class="flex items-baseline justify-between gap-3 mb-1">
+              <h3 id="t-charge-soc" class="text-xs font-bold text-emerald-600 uppercase tracking-wider">
+                Орієнтовний залишок
+              </h3>
+              <span id="charge-soc-range" class="text-xs text-gray-400"></span>
+            </div>
+            <div id="charge-soc-value" class="text-2xl font-bold text-gray-800 dark:text-gray-100">--</div>
+            <div id="charge-soc-track" class="mt-3 h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+              <div id="charge-soc-span" class="absolute top-0 h-2.5 rounded-full bg-emerald-500"></div>
+            </div>
+            <p id="charge-soc-detail" class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-3">
+              Рахую покази розетки і лічильника...
+            </p>
+          </div>
+
           <p id="charge-note" class="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
             Дві зарядки, 25 А і 20 А, включені в одну розетку на лінії щитка.
             Напруга, струм і потужність — це мережа 230 В, не клеми АКБ.
@@ -937,6 +953,6 @@
       </footer>
     </div>
 
-    <script type="module" src="js/app.js?v=2.0911.2256"></script>
+    <script type="module" src="js/app.js?v=2.0911.2356"></script>
   </body>
 </html>

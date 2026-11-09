@@ -20,7 +20,20 @@ export const translations = {
         chargeSubStale: "Свежих показаний розетки нет",
         chargeVoltage: "Напряжение линии", chargeCurrent: "Ток", chargePower: "Мощность", chargeEnergy: "Энергия",
         chargeNote: "Две зарядки, 25 А и 20 А, включены в одну розетку на линии щитка. Напряжение, ток и мощность — это сеть 230 В, не клеммы АКБ. Энергия — счётчик самой розетки в кВт·ч с последнего сброса, сайт его не вычисляет.",
-        chargeUpdated: "Обновлено", chargeWaiting: "Ожидание данных...", 
+        chargeUpdated: "Обновлено", chargeWaiting: "Ожидание данных...",
+        socTitle: "Ориентировочный остаток",
+        socWait: "Считаю показания розетки и счётчика...",
+        socNoPlug: "Показаний розетки ещё мало, заряд по ним не посчитать.",
+        socShift: "сдвиг {sign}{kwh} кВт·ч",
+        socKnownValue: "{pct}%",
+        socRange: "{low}–{high}%",
+        socBody: "С {from} в зарядки пришло {acIn} кВт·ч из линии, в АКБ из них около {batIn} кВт·ч. За то же время резерв забрал из АКБ около {batOut} кВт·ч.",
+        socSpan: "Где именно остаток, неизвестно: от {low}% до {high}% ёмкости {cap} кВт·ч. 100% ставится, когда мощность пропадает, а напряжение линии остаётся. Пока такого момента нет. Сдвиг уровня {shift} кВт·ч — это {pct}% ёмкости.",
+        socFull: "100% взято в {when}: розетка перестала отдавать мощность, напряжение линии осталось.",
+        socAfter: "После этого в АКБ вошло около {batIn} кВт·ч, резерв забрал около {batOut} кВт·ч. Сейчас около {kwh} кВт·ч из {cap}.",
+        socKnown: "Остаток сошёлся около {kwh} кВт·ч из {cap}: расчёт от пустой и от полной батареи пришёл в одну точку.",
+        socWeek: "За 7 дней резерв забрал из АКБ около {week} кВт·ч — это {cycles} ёмкости. Зарядки за эти дни есть в расчёте только с момента, когда розетка появилась на сайте.",
+        socFoot: "КПД зарядок принят 85%, инвертора 88%. Паузы без показаний не учитываются. Это не замер на клеммах АКБ.", 
         gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние 7 дней",
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
@@ -58,7 +71,20 @@ export const translations = {
         chargeSubStale: "Свіжих показів розетки немає",
         chargeVoltage: "Напруга лінії", chargeCurrent: "Струм", chargePower: "Потужність", chargeEnergy: "Енергія",
         chargeNote: "Дві зарядки, 25 А і 20 А, включені в одну розетку на лінії щитка. Напруга, струм і потужність — це мережа 230 В, не клеми АКБ. Енергія — лічильник самої розетки в кВт·год з останнього скидання, сайт його не рахує.",
-        chargeUpdated: "Оновлено", chargeWaiting: "Очікування даних...", 
+        chargeUpdated: "Оновлено", chargeWaiting: "Очікування даних...",
+        socTitle: "Орієнтовний залишок",
+        socWait: "Рахую покази розетки і лічильника...",
+        socNoPlug: "Показів розетки ще мало, заряд по них не порахувати.",
+        socShift: "зсув {sign}{kwh} кВт·год",
+        socKnownValue: "{pct}%",
+        socRange: "{low}–{high}%",
+        socBody: "З {from} у зарядки прийшло {acIn} кВт·год з лінії, в АКБ із них близько {batIn} кВт·год. За той самий час резерв забрав з АКБ близько {batOut} кВт·год.",
+        socSpan: "Де саме залишок, невідомо: від {low}% до {high}% ємності {cap} кВт·год. 100% ставиться, коли потужність зникає, а напруга лінії лишається. Поки такого моменту немає. Зсув рівня {shift} кВт·год — це {pct}% ємності.",
+        socFull: "100% взято о {when}: розетка перестала віддавати потужність, напруга лінії лишилась.",
+        socAfter: "Після цього в АКБ увійшло близько {batIn} кВт·год, резерв забрав близько {batOut} кВт·год. Зараз близько {kwh} кВт·год із {cap}.",
+        socKnown: "Залишок зійшовся близько {kwh} кВт·год із {cap}: розрахунок від порожньої і від повної батареї прийшов в одну точку.",
+        socWeek: "За 7 днів резерв забрав з АКБ близько {week} кВт·год — це {cycles} ємності. Зарядки за ці дні є в розрахунку лише з моменту, коли розетка з'явилась на сайті.",
+        socFoot: "ККД зарядок прийнято 85%, інвертора 88%. Паузи без показів не враховуються. Це не вимір на клемах АКБ.", 
         gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні 7 днів",
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
@@ -96,7 +122,20 @@ export const translations = {
         chargeSubStale: "No fresh reading from the plug",
         chargeVoltage: "Line voltage", chargeCurrent: "Current", chargePower: "Power", chargeEnergy: "Energy",
         chargeNote: "Two chargers, 25 A and 20 A, share one plug on the panel line. Voltage, current and power are the 230 V mains, not the battery terminals. Energy is the plug's own kWh counter since its last reset; the site does not calculate it.",
-        chargeUpdated: "Updated", chargeWaiting: "Waiting for data...", 
+        chargeUpdated: "Updated", chargeWaiting: "Waiting for data...",
+        socTitle: "Approximate reserve",
+        socWait: "Reading the plug and the meter...",
+        socNoPlug: "There are not enough plug readings yet to count the charge.",
+        socShift: "shift {sign}{kwh} kWh",
+        socKnownValue: "{pct}%",
+        socRange: "{low}–{high}%",
+        socBody: "Since {from} the chargers took {acIn} kWh from the line, about {batIn} kWh of that reached the battery. Over the same time the backup drew about {batOut} kWh from the battery.",
+        socSpan: "The reserve itself is unknown: somewhere from {low}% to {high}% of the {cap} kWh capacity. 100% is set when the power drops and the line voltage stays. That moment has not happened yet. The level moved {shift} kWh, {pct}% of capacity.",
+        socFull: "100% was taken at {when}: the plug stopped delivering power and the line voltage remained.",
+        socAfter: "After that about {batIn} kWh went into the battery and the backup drew about {batOut} kWh. About {kwh} kWh of {cap} remains.",
+        socKnown: "The reserve converged near {kwh} kWh of {cap}: counting from empty and from full met at one point.",
+        socWeek: "Over 7 days the backup drew about {week} kWh from the battery — {cycles} of its capacity. Charging in that period is included only from the moment the plug appeared on the site.",
+        socFoot: "Charger efficiency is taken as 85%, inverter efficiency as 88%. Gaps without readings are skipped. This is not a measurement at the battery terminals.", 
         gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last 7 days",
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
@@ -245,7 +284,7 @@ export function applyLanguage(lang) {
         't-set-plug-info': t.stPlugInfo,
         't-charge-voltage': t.chargeVoltage, 't-charge-current': t.chargeCurrent,
         't-charge-power': t.chargePower, 't-charge-energy': t.chargeEnergy,
-        'charge-note': t.chargeNote
+        'charge-note': t.chargeNote, 't-charge-soc': t.socTitle
     };
     for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
@@ -323,6 +362,263 @@ export function renderCharge(reading, lang) {
             ? `${t.chargeUpdated}: ${stamp.toLocaleTimeString([], { hour12: false })}`
             : t.chargeWaiting;
     }
+}
+
+const CHARGE_AC_TO_BATTERY = 0.85;
+const INVERTER_BATTERY_TO_AC = 0.88;
+const METER_GAP_MS = 180000;
+const PLUG_GAP_MS = 10 * 60 * 1000;
+const FULL_HOLD_MS = 2 * 60 * 1000;
+
+function sampleTimeMs(reading) {
+    if (reading?.timestamp && typeof reading.timestamp.toDate === "function") {
+        return reading.timestamp.toDate().getTime();
+    }
+    if (Number.isFinite(Number(reading?.timestamp_unix))) return Number(reading.timestamp_unix) * 1000;
+    return null;
+}
+
+function wattsInside(samples, at, maxGap, wattsOf) {
+    let previous = null;
+    for (let index = 0; index < samples.length; index += 1) {
+        const sample = samples[index];
+        if (sample.t > at) {
+            if (!previous) return 0;
+            const span = sample.t - previous.t;
+            if (span <= 0 || span > maxGap || at < previous.t) return 0;
+            const left = wattsOf(previous);
+            const right = wattsOf(sample);
+            const fraction = (at - previous.t) / span;
+            return left + (right - left) * fraction;
+        }
+        previous = sample;
+    }
+    if (!previous || at - previous.t > maxGap) return 0;
+    return wattsOf(previous);
+}
+
+export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh, nowMs = Date.now()) {
+    const capacity = Number(capacityKwh);
+    const capacityWh = Number.isFinite(capacity) && capacity > 0 ? capacity * 1000 : 2400;
+    const meters = filterMeterSeries(meterReadings || [])
+        .map(reading => ({
+            t: Number(reading.timestamp_unix) * 1000,
+            power: Math.max(0, Number(reading.power) || 0),
+            mode: classifySupply(reading)
+        }))
+        .filter(sample => Number.isFinite(sample.t))
+        .sort((a, b) => a.t - b.t);
+    const charges = (chargeReadings || [])
+        .map(reading => {
+            const power = Number(reading.power);
+            const voltage = Number(reading.voltage);
+            const charging = reading.on === true && Number.isFinite(power) && power >= CHARGE_ACTIVE_WATTS;
+            return {
+                t: sampleTimeMs(reading),
+                power: charging ? power : 0,
+                charging,
+                live: Number.isFinite(voltage) && voltage >= SUPPLY_VOLTAGE_MIN
+            };
+        })
+        .filter(sample => Number.isFinite(sample.t))
+        .sort((a, b) => a.t - b.t);
+
+    let fullAt = null;
+    for (let index = 1; index < charges.length; index += 1) {
+        const previous = charges[index - 1];
+        const current = charges[index];
+        const span = current.t - previous.t;
+        if (span <= 0 || span > PLUG_GAP_MS) continue;
+        if (!previous.charging || current.charging || !current.live) continue;
+        let heldUntil = current.t;
+        let resumed = false;
+        let broken = false;
+        for (let follow = index + 1; follow < charges.length; follow += 1) {
+            const gap = charges[follow].t - charges[follow - 1].t;
+            if (gap <= 0 || gap > PLUG_GAP_MS || !charges[follow].live) {
+                broken = true;
+                break;
+            }
+            if (charges[follow].charging) {
+                resumed = true;
+                heldUntil = charges[follow].t;
+                break;
+            }
+            heldUntil = charges[follow].t;
+        }
+        if (broken) continue;
+        if (resumed && heldUntil - current.t < FULL_HOLD_MS) continue;
+        fullAt = current.t;
+    }
+
+    const integrate = (samples, wattsOf, maxGap, from, to) => {
+        let wh = 0;
+        for (let index = 1; index < samples.length; index += 1) {
+            const left = samples[index - 1];
+            const right = samples[index];
+            const span = right.t - left.t;
+            if (span <= 0 || span > maxGap) continue;
+            const start = from === null ? left.t : Math.max(left.t, from);
+            const end = to === null ? right.t : Math.min(right.t, to);
+            if (end <= start) continue;
+            const average = (wattsOf(left) + wattsOf(right)) / 2;
+            if (average <= 0) continue;
+            wh += average * ((end - start) / span) * (span / 3600000);
+        }
+        return wh;
+    };
+
+    const reserveWatts = (sample) => sample.mode === "reserve" ? sample.power : 0;
+    const chargeWatts = (sample) => sample.charging ? sample.power : 0;
+    const reserve7AcWh = integrate(meters, reserveWatts, METER_GAP_MS, null, null);
+    const windowStart = charges.length ? charges[0].t : null;
+    const lastChargeAt = charges.length ? charges[charges.length - 1].t : null;
+    const lastMeterAt = meters.length ? meters[meters.length - 1].t : null;
+    let windowEnd = windowStart;
+    if (lastChargeAt !== null) {
+        windowEnd = Math.max(windowEnd, nowMs - lastChargeAt <= PLUG_GAP_MS ? nowMs : lastChargeAt);
+    }
+    if (lastMeterAt !== null) {
+        windowEnd = Math.max(windowEnd, nowMs - lastMeterAt <= METER_GAP_MS ? nowMs : lastMeterAt);
+    }
+    const chargeAcWh = windowStart === null ? 0 : integrate(charges, chargeWatts, PLUG_GAP_MS, windowStart, windowEnd);
+    const reserveWindowAcWh = windowStart === null ? 0 : integrate(meters, reserveWatts, METER_GAP_MS, windowStart, windowEnd);
+    const intoBatteryWh = chargeAcWh * CHARGE_AC_TO_BATTERY;
+    const outOfBatteryWh = reserveWindowAcWh / INVERTER_BATTERY_TO_AC;
+    const weekBatteryWh = reserve7AcWh / INVERTER_BATTERY_TO_AC;
+    const countedFrom = fullAt === null ? windowStart : fullAt;
+    const intoAfterWh = fullAt === null ? intoBatteryWh : integrate(charges, chargeWatts, PLUG_GAP_MS, fullAt, windowEnd) * CHARGE_AC_TO_BATTERY;
+    const outAfterWh = fullAt === null ? outOfBatteryWh : integrate(meters, reserveWatts, METER_GAP_MS, fullAt, windowEnd) / INVERTER_BATTERY_TO_AC;
+    const remainingWh = fullAt === null
+        ? null
+        : Math.min(capacityWh, Math.max(0, capacityWh + intoAfterWh - outAfterWh));
+
+    let lowWh = 0;
+    let highWh = capacityWh;
+    if (remainingWh !== null) {
+        lowWh = remainingWh;
+        highWh = remainingWh;
+    } else if (windowStart !== null && windowEnd > windowStart) {
+        const marks = new Set([windowStart, windowEnd]);
+        charges.forEach(sample => {
+            if (sample.t >= windowStart && sample.t <= windowEnd) marks.add(sample.t);
+        });
+        meters.forEach(sample => {
+            if (sample.t >= windowStart && sample.t <= windowEnd) marks.add(sample.t);
+        });
+        const points = [...marks].sort((a, b) => a - b);
+        for (let index = 1; index < points.length; index += 1) {
+            const hours = (points[index] - points[index - 1]) / 3600000;
+            const mid = (points[index] + points[index - 1]) / 2;
+            const delta = (wattsInside(charges, mid, PLUG_GAP_MS, chargeWatts) * CHARGE_AC_TO_BATTERY
+                - wattsInside(meters, mid, METER_GAP_MS, reserveWatts) / INVERTER_BATTERY_TO_AC) * hours;
+            lowWh = Math.min(capacityWh, Math.max(0, lowWh + delta));
+            highWh = Math.min(capacityWh, Math.max(0, highWh + delta));
+        }
+    }
+
+    return {
+        ready: charges.length >= 2 && windowEnd > windowStart,
+        capacityKwh: capacityWh / 1000,
+        from: countedFrom,
+        to: windowEnd,
+        fullAt,
+        chargeAcWh,
+        intoBatteryWh: fullAt === null ? intoBatteryWh : intoAfterWh,
+        outOfBatteryWh: fullAt === null ? outOfBatteryWh : outAfterWh,
+        weekBatteryWh,
+        netWh: (fullAt === null ? intoBatteryWh : intoAfterWh) - (fullAt === null ? outOfBatteryWh : outAfterWh),
+        lowWh,
+        highWh
+    };
+}
+
+function kwhText(wh) {
+    return (wh / 1000).toFixed(3);
+}
+
+function fill(template, values) {
+    return Object.entries(values).reduce((text, [key, value]) => text.split(`{${key}}`).join(value), template);
+}
+
+export function renderChargeSoc(estimate, lang) {
+    const valueEl = document.getElementById("charge-soc-value");
+    const rangeEl = document.getElementById("charge-soc-range");
+    const detailEl = document.getElementById("charge-soc-detail");
+    const spanEl = document.getElementById("charge-soc-span");
+    const trackEl = document.getElementById("charge-soc-track");
+    if (!valueEl || !rangeEl || !detailEl || !spanEl || !trackEl) return;
+
+    const t = translations[lang] || translations.uk;
+    const emptyBar = () => {
+        spanEl.style.left = "0%";
+        spanEl.style.width = "0%";
+        trackEl.classList.add("hidden");
+    };
+    if (!estimate) {
+        valueEl.textContent = "--";
+        rangeEl.textContent = "";
+        detailEl.textContent = t.socWait;
+        emptyBar();
+        return;
+    }
+
+    const week = fill(t.socWeek, {
+        week: kwhText(estimate.weekBatteryWh),
+        cycles: estimate.capacityKwh > 0 ? (estimate.weekBatteryWh / 1000 / estimate.capacityKwh).toFixed(1) : "0.0"
+    });
+    if (!estimate.ready) {
+        valueEl.textContent = "--";
+        rangeEl.textContent = "";
+        detailEl.textContent = `${t.socNoPlug} ${week} ${t.socFoot}`;
+        emptyBar();
+        return;
+    }
+
+    const lowPct = Math.round((estimate.lowWh / (estimate.capacityKwh * 1000)) * 100);
+    const highPct = Math.round((estimate.highWh / (estimate.capacityKwh * 1000)) * 100);
+    const fromDate = new Date(estimate.from);
+    const when = `${String(fromDate.getDate()).padStart(2, "0")}.${String(fromDate.getMonth() + 1).padStart(2, "0")}, ${String(fromDate.getHours()).padStart(2, "0")}:${String(fromDate.getMinutes()).padStart(2, "0")}`;
+    const anchored = Number.isFinite(estimate.fullAt);
+    if (anchored) {
+        const remainPct = Math.round((estimate.lowWh / (estimate.capacityKwh * 1000)) * 100);
+        trackEl.classList.remove("hidden");
+        spanEl.style.left = "0%";
+        spanEl.style.width = `${Math.max(0, Math.min(100, remainPct))}%`;
+        valueEl.textContent = fill(t.socKnownValue, { pct: remainPct });
+        rangeEl.textContent = `${kwhText(estimate.lowWh)} / ${estimate.capacityKwh.toFixed(1)}`;
+        detailEl.textContent = `${fill(t.socFull, { when })} ${fill(t.socAfter, {
+            batIn: kwhText(estimate.intoBatteryWh),
+            batOut: kwhText(estimate.outOfBatteryWh),
+            kwh: kwhText(estimate.lowWh),
+            cap: estimate.capacityKwh.toFixed(1)
+        })} ${week} ${t.socFoot}`;
+        return;
+    }
+    const known = highPct - lowPct <= 5;
+    const shift = `${estimate.netWh >= 0 ? "+" : "−"}${kwhText(Math.abs(estimate.netWh))}`;
+    const pct = estimate.capacityKwh > 0 ? ((estimate.netWh / 1000 / estimate.capacityKwh) * 100).toFixed(1) : "0.0";
+    trackEl.classList.toggle("hidden", !known);
+    const mark = Math.round((lowPct + highPct) / 2);
+    spanEl.style.left = `${mark}%`;
+    spanEl.style.width = known ? "3%" : "0%";
+    if (known) {
+        valueEl.textContent = fill(t.socKnownValue, { pct: mark });
+        rangeEl.textContent = fill(t.socRange, { low: lowPct, high: highPct });
+    } else {
+        valueEl.textContent = fill(t.socShift, { sign: "", kwh: shift });
+        rangeEl.textContent = fill(t.socRange, { low: lowPct, high: highPct });
+    }
+    const body = fill(t.socBody, {
+        from: when,
+        acIn: kwhText(estimate.chargeAcWh),
+        batIn: kwhText(estimate.intoBatteryWh),
+        batOut: kwhText(estimate.outOfBatteryWh)
+    });
+    const verdict = known
+        ? fill(t.socKnown, { kwh: kwhText((estimate.lowWh + estimate.highWh) / 2), cap: estimate.capacityKwh.toFixed(1) })
+        : fill(t.socSpan, { low: lowPct, high: highPct, cap: estimate.capacityKwh.toFixed(1), shift, pct });
+    detailEl.textContent = `${body} ${verdict} ${week} ${t.socFoot}`;
 }
 
 export const RESERVE_BATTERY_WH = 12 * 100;
