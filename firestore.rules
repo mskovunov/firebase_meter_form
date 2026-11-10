@@ -72,6 +72,20 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    match /port_logs/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status in ['busy', 'available'];
+      allow update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

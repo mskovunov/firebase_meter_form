@@ -1,6 +1,6 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.0911.2356';
+import * as UI from './ui.js?v=2.1011.2203';
 import * as Charts from './charts.js?v=16';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -35,6 +35,7 @@ let chargeUnsubscribe = null;
 let chargeHistory = [];
 let socMeterDocs = [];
 let chargeBalanceStarted = false;
+let latestReserveEstimate = null;
 
 const HOME_EVENT_LIMIT = 30;
 const SUPPLY_EDGE_LIMIT = 120;
@@ -66,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startMainListener();
     startSupplyEdgesListener();
     startChargeListener();
+    startChargeBalance();
     setInterval(() => {
         if (!latestChargeReading) return;
         UI.renderCharge(latestChargeReading, currentLang);
@@ -307,13 +309,7 @@ function paintLiveSupply() {
     rememberInverterOff(latestSupplyReading);
     const shown = UI.supplyReadingForDisplay(latestSupplyReading, currentDocs);
     UI.renderSupplyStatus(shown, currentLang);
-    UI.renderReserveRuntime(
-        latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
-        todayStartEnergy,
-        currentLang,
-        batteryCapacityKwh,
-        latestChargeReading
-    );
+    paintReserveCard();
     if (supplyHistoryReady && (cachedSupplyEdges || inverterOffAt || confirmedSilence)) {
         UI.renderSupplyEdgeResult(edgesForDisplay());
     }
@@ -509,21 +505,21 @@ function refreshData() {
     else if (supplyHistoryReady && (cachedSupplyEdges || inverterOffAt)) UI.renderSupplyEdgeResult(edgesForDisplay());
     if (graphDocs.length > 0 || meterDocs.length > 0) refreshGraphs();
     paintChargeBalance();
-    UI.renderReserveRuntime(
-        latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
-        todayStartEnergy,
-        currentLang,
-        batteryCapacityKwh,
-        latestChargeReading
-    );
+    paintReserveCard();
+}
+
+function paintReserveCard() {
+    const shown = latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null;
+    UI.renderReserveRuntime(shown, latestReserveEstimate, currentLang, latestChargeReading);
 }
 
 function paintChargeBalance() {
     if (!chargeBalanceStarted) return;
-    const estimate = (chargeHistory.length || socMeterDocs.length)
+    latestReserveEstimate = (chargeHistory.length || socMeterDocs.length)
         ? UI.estimateLifepoReserve(socMeterDocs, chargeHistory, batteryCapacityKwh)
         : null;
-    UI.renderChargeSoc(estimate, currentLang);
+    UI.renderChargeSoc(latestReserveEstimate, currentLang);
+    paintReserveCard();
 }
 
 function startChargeBalance() {
@@ -564,13 +560,7 @@ function startChargeListener() {
     chargeUnsubscribe = onSnapshot(qCharge, (snapshot) => {
         latestChargeReading = snapshot.empty ? null : snapshot.docs[0].data();
         UI.renderCharge(latestChargeReading, currentLang);
-        UI.renderReserveRuntime(
-            latestSupplyReading ? UI.supplyReadingForDisplay(latestSupplyReading, currentDocs) : null,
-            todayStartEnergy,
-            currentLang,
-            batteryCapacityKwh,
-            latestChargeReading
-        );
+        paintReserveCard();
     }, (err) => {
         console.error("Charge listener error:", err);
         latestChargeReading = null;
@@ -705,6 +695,7 @@ async function loadSettingsFromDB() {
                 batteryCapacityKwh = capacity;
                 if (inputBattery) inputBattery.value = capacity;
                 if (latestSupplyReading) paintLiveSupply();
+                paintChargeBalance();
             } else if (inputBattery && !inputBattery.value) {
                 inputBattery.value = batteryCapacityKwh;
             }

@@ -6,6 +6,8 @@ export const translations = {
         powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от АКБ", subOff: "Нет сети и резерв не работает",
         runtimeTitle: "Запас LiFePO4", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт · осталось ≈ {time}",
         runtimeCharge: "ЗАРЯДКА", runtimeDischarge: "РАЗРЯД", runtimeIdle: "ПОКОЙ", runtimeNoLink: "НЕТ ДАННЫХ", unitW: "Вт",
+        runtimeLeft: "≈ {time}",
+        runtimeLevelNote: "{kwh} кВт·ч из {capacity}",
         runtimeChargeNote: "Зарядки берут {power} Вт из линии щитка · {volt} В · {amp} А. Процент на клеммах розетка не измеряет.",
         runtimeIdleNote: "Линия есть, зарядки почти не потребляют.",
         runtimeNoLinkNote: "Жду показания розетки ecoFlow.",
@@ -57,6 +59,8 @@ export const translations = {
         powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від АКБ", subOff: "Немає мережі і резерв не працює",
         runtimeTitle: "Запас LiFePO4", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт · залишилось ≈ {time}",
         runtimeCharge: "ЗАРЯДКА", runtimeDischarge: "РОЗРЯД", runtimeIdle: "СПОКІЙ", runtimeNoLink: "НЕМАЄ ДАНИХ", unitW: "Вт",
+        runtimeLeft: "≈ {time}",
+        runtimeLevelNote: "{kwh} кВт·год із {capacity}",
         runtimeChargeNote: "Зарядки беруть {power} Вт з лінії щитка · {volt} В · {amp} А. Відсоток на клемах розетка не вимірює.",
         runtimeIdleNote: "Лінія є, зарядки майже не споживають.",
         runtimeNoLinkNote: "Чекаю на покази розетки ecoFlow.",
@@ -108,6 +112,8 @@ export const translations = {
         powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on the battery", subOff: "No grid and the backup is off",
         runtimeTitle: "LiFePO4 reserve", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W · about {time} left",
         runtimeCharge: "CHARGING", runtimeDischarge: "DISCHARGING", runtimeIdle: "IDLE", runtimeNoLink: "NO DATA", unitW: "W",
+        runtimeLeft: "≈ {time}",
+        runtimeLevelNote: "{kwh} kWh of {capacity}",
         runtimeChargeNote: "The chargers draw {power} W from the panel line · {volt} V · {amp} A. The plug does not measure cell percent.",
         runtimeIdleNote: "The line is live and the chargers are drawing almost nothing.",
         runtimeNoLinkNote: "Waiting for the ecoFlow plug.",
@@ -533,6 +539,37 @@ export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh
     };
 }
 
+export function reserveLevel(estimate) {
+    if (!estimate?.ready || !(estimate.capacityKwh > 0)) return null;
+    const capacityWh = estimate.capacityKwh * 1000;
+    const lowPct = Math.round((estimate.lowWh / capacityWh) * 100);
+    const highPct = Math.round((estimate.highWh / capacityWh) * 100);
+    const anchored = Number.isFinite(estimate.fullAt);
+    if (anchored) {
+        const pct = Math.max(0, Math.min(100, lowPct));
+        return { valueText: `${pct}%`, pct, remainingWh: estimate.lowWh, lowPct: pct, highPct: pct };
+    }
+    const known = highPct - lowPct <= 5;
+    if (known) {
+        const pct = Math.max(0, Math.min(100, Math.round((lowPct + highPct) / 2)));
+        return {
+            valueText: `${pct}%`,
+            pct,
+            remainingWh: (estimate.lowWh + estimate.highWh) / 2,
+            lowPct,
+            highPct
+        };
+    }
+    const shift = `${estimate.netWh >= 0 ? "+" : "−"}${kwhText(Math.abs(estimate.netWh))}`;
+    return {
+        valueText: shift,
+        pct: null,
+        remainingWh: (estimate.lowWh + estimate.highWh) / 2,
+        lowPct,
+        highPct
+    };
+}
+
 function kwhText(wh) {
     return (wh / 1000).toFixed(3);
 }
@@ -577,6 +614,7 @@ export function renderChargeSoc(estimate, lang) {
 
     const lowPct = Math.round((estimate.lowWh / (estimate.capacityKwh * 1000)) * 100);
     const highPct = Math.round((estimate.highWh / (estimate.capacityKwh * 1000)) * 100);
+    const level = reserveLevel(estimate);
     const fromDate = new Date(estimate.from);
     const when = `${String(fromDate.getDate()).padStart(2, "0")}.${String(fromDate.getMonth() + 1).padStart(2, "0")}, ${String(fromDate.getHours()).padStart(2, "0")}:${String(fromDate.getMinutes()).padStart(2, "0")}`;
     const anchored = Number.isFinite(estimate.fullAt);
@@ -584,8 +622,8 @@ export function renderChargeSoc(estimate, lang) {
         const remainPct = Math.round((estimate.lowWh / (estimate.capacityKwh * 1000)) * 100);
         trackEl.classList.remove("hidden");
         spanEl.style.left = "0%";
-        spanEl.style.width = `${Math.max(0, Math.min(100, remainPct))}%`;
-        valueEl.textContent = fill(t.socKnownValue, { pct: remainPct });
+        spanEl.style.width = `${Math.max(0, Math.min(100, level.pct))}%`;
+        valueEl.textContent = level.valueText;
         rangeEl.textContent = `${kwhText(estimate.lowWh)} / ${estimate.capacityKwh.toFixed(1)}`;
         detailEl.textContent = `${fill(t.socFull, { when })} ${fill(t.socAfter, {
             batIn: kwhText(estimate.intoBatteryWh),
@@ -599,16 +637,10 @@ export function renderChargeSoc(estimate, lang) {
     const shift = `${estimate.netWh >= 0 ? "+" : "−"}${kwhText(Math.abs(estimate.netWh))}`;
     const pct = estimate.capacityKwh > 0 ? ((estimate.netWh / 1000 / estimate.capacityKwh) * 100).toFixed(1) : "0.0";
     trackEl.classList.toggle("hidden", !known);
-    const mark = Math.round((lowPct + highPct) / 2);
-    spanEl.style.left = `${mark}%`;
+    spanEl.style.left = `${level.pct ?? Math.round((lowPct + highPct) / 2)}%`;
     spanEl.style.width = known ? "3%" : "0%";
-    if (known) {
-        valueEl.textContent = fill(t.socKnownValue, { pct: mark });
-        rangeEl.textContent = fill(t.socRange, { low: lowPct, high: highPct });
-    } else {
-        valueEl.textContent = fill(t.socShift, { sign: "", kwh: shift });
-        rangeEl.textContent = fill(t.socRange, { low: lowPct, high: highPct });
-    }
+    valueEl.textContent = level.valueText;
+    rangeEl.textContent = fill(t.socRange, { low: lowPct, high: highPct });
     const body = fill(t.socBody, {
         from: when,
         acIn: kwhText(estimate.chargeAcWh),
@@ -820,17 +852,16 @@ function formatRuntime(hours) {
     return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function renderReserveRuntime(reading, todayStartEnergy, currentLang, capacityKwh = 1.2, chargeReading = null) {
+export function renderReserveRuntime(reading, estimate, currentLang, chargeReading = null) {
     const card = document.getElementById("reserve-runtime");
     const valueEl = document.getElementById("reserve-runtime-value");
     const noteEl = document.getElementById("reserve-runtime-note");
     const statusEl = document.getElementById("reserve-runtime-status");
+    const leftEl = document.getElementById("reserve-runtime-left");
     const barEl = document.getElementById("reserve-runtime-bar");
     if (!card || !valueEl || !noteEl || !statusEl || !barEl) return;
 
     const t = translations[currentLang] || translations.uk;
-    const capacity = Number(capacityKwh);
-    const usableKwh = Number.isFinite(capacity) && capacity > 0 ? capacity : 1.2;
     const stamp = chargeReading?.timestamp && typeof chargeReading.timestamp.toDate === "function"
         ? chargeReading.timestamp.toDate()
         : null;
@@ -838,6 +869,7 @@ export function renderReserveRuntime(reading, todayStartEnergy, currentLang, cap
     const chargePower = Number(chargeReading?.power);
     const charging = chargeFresh && chargeReading.on && chargePower >= CHARGE_ACTIVE_WATTS;
     const onReserve = reading && classifySupply(reading) === "reserve";
+    const level = reserveLevel(estimate);
 
     const paint = (tone, status, value, note, barPercent, barClass) => {
         const tones = {
@@ -857,36 +889,33 @@ export function renderReserveRuntime(reading, todayStartEnergy, currentLang, cap
         noteEl.textContent = note;
         barEl.style.width = `${Math.max(0, Math.min(100, barPercent))}%`;
         barEl.className = `${barClass} h-2.5 rounded-full transition-all duration-700`;
+        if (leftEl) {
+            const power = Number(reading?.power);
+            if (onReserve && level?.remainingWh != null && Number.isFinite(power) && power > 0) {
+                leftEl.textContent = t.runtimeLeft.replace("{time}", formatRuntime(level.remainingWh / power));
+                leftEl.classList.remove("hidden");
+            } else {
+                leftEl.textContent = "";
+                leftEl.classList.add("hidden");
+            }
+        }
     };
 
-    if (onReserve) {
-        const power = Number(reading.power);
-        const energy = Number(reading.energy);
-        const start = Number(todayStartEnergy);
-        const usedWh = Number.isFinite(energy) && Number.isFinite(start) ? Math.max(0, (energy - start) * 1000) : null;
-        if (usedWh === null || !Number.isFinite(power) || power <= 0) {
-            paint("amber", t.runtimeDischarge, "--%", t.runtimeWait, 0, "bg-amber-500");
-            return;
-        }
-        const remainingWh = Math.max(0, usableKwh * 1000 - usedWh);
-        const pct = Math.round((remainingWh / (usableKwh * 1000)) * 100);
-        paint(
-            "amber",
-            t.runtimeDischarge,
-            `${pct}%`,
-            t.runtimeNote
-                .replace("{today}", (usedWh / 1000).toFixed(3))
-                .replace("{capacity}", usableKwh.toFixed(3))
-                .replace("{power}", power.toFixed(0))
-                .replace("{time}", formatRuntime(remainingWh / power)),
-            pct,
-            "bg-amber-500"
-        );
+    const levelNote = level
+        ? t.runtimeLevelNote
+            .replace("{kwh}", kwhText(level.remainingWh))
+            .replace("{capacity}", estimate.capacityKwh.toFixed(3))
+        : t.runtimeWait;
+    const shownValue = level ? level.valueText : "--";
+    const shownBar = level?.pct ?? 0;
+
+    if (!chargeFresh && !onReserve) {
+        paint("gray", t.runtimeNoLink, shownValue, level ? levelNote : t.runtimeNoLinkNote, shownBar, "bg-gray-400");
         return;
     }
 
-    if (!chargeFresh) {
-        paint("gray", t.runtimeNoLink, "--", t.runtimeNoLinkNote, 0, "bg-gray-400");
+    if (onReserve) {
+        paint("amber", t.runtimeDischarge, shownValue, levelNote, shownBar, "bg-amber-500");
         return;
     }
 
@@ -894,25 +923,18 @@ export function renderReserveRuntime(reading, todayStartEnergy, currentLang, cap
         paint(
             "green",
             t.runtimeCharge,
-            `${chargePower.toFixed(0)} ${t.unitW}`,
-            t.runtimeChargeNote
+            shownValue,
+            level ? levelNote : t.runtimeChargeNote
                 .replace("{power}", chargePower.toFixed(0))
                 .replace("{volt}", Number(chargeReading.voltage).toFixed(1))
                 .replace("{amp}", Number(chargeReading.current).toFixed(2)),
-            Math.min(100, Math.round(chargePower / 8)),
+            shownBar,
             "bg-green-500"
         );
         return;
     }
 
-    paint(
-        "gray",
-        t.runtimeIdle,
-        `${Number.isFinite(chargePower) ? chargePower.toFixed(0) : "0"} ${t.unitW}`,
-        t.runtimeIdleNote,
-        8,
-        "bg-gray-400"
-    );
+    paint("gray", t.runtimeIdle, shownValue, levelNote, shownBar, "bg-gray-400");
 }
 
 export function renderHome(docs, currentLang) {
