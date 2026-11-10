@@ -1,5 +1,5 @@
 // js/charts.js
-import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.1011.2203';
+import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.1011.2232';
 
 try {
     if (typeof ChartDataLabels !== 'undefined') {
@@ -8,6 +8,7 @@ try {
 } catch (e) { console.error(e); }
 
 let chartInstance = null;
+let lifepoChartInstance = null;
 let statsChartInstance = null;
 let monChartInstance = null;
 
@@ -67,6 +68,7 @@ function batteryRange(values) {
 
 function dayTick(value) {
     const label = this.getLabelForValue(value);
+    if (!label) return null;
     const day = label.slice(0, 5);
     if (value === 0) return day;
     const previous = this.getLabelForValue(value - 1);
@@ -103,6 +105,120 @@ export function updateMainChart(docs) {
             type: 'line',
             data: { labels: labels, datasets: [{ label: 'Battery %', data: dataPoints, borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0 }] },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, datalabels: { display: false } }, scales: { y: { min: range.min, max: range.max, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor, autoSkip: false, maxRotation: 0, callback: dayTick } } } }
+        });
+    }
+}
+
+function formatChartStamp(time) {
+    const date = new Date(time);
+    const pad = value => String(value).padStart(2, '0');
+    return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function lifepoHourStep(spanMs) {
+    const hours = spanMs / 3600000;
+    if (hours <= 8) return 3600000;
+    if (hours <= 24) return 2 * 3600000;
+    if (hours <= 72) return 6 * 3600000;
+    return 12 * 3600000;
+}
+
+function lifepoTickPlan(sampled) {
+    const times = sampled.map(item => item.t);
+    const shown = new Set();
+    if (!times.length) return { shown, callback: () => null };
+    const step = lifepoHourStep(times[times.length - 1] - times[0]);
+    const nearest = (target) => {
+        let best = 0;
+        let bestDist = Infinity;
+        times.forEach((time, index) => {
+            const dist = Math.abs(time - target);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = index;
+            }
+        });
+        return bestDist <= step / 2 ? best : null;
+    };
+    shown.add(0);
+    for (let grid = Math.ceil(times[0] / step) * step; grid <= times[times.length - 1]; grid += step) {
+        const index = nearest(grid);
+        if (index !== null) shown.add(index);
+    }
+    const last = times.length - 1;
+    const earlier = [...shown].filter(index => index < last);
+    const previous = earlier.length ? Math.max(...earlier) : null;
+    if (previous === null || times[last] - times[previous] >= step * 0.45) shown.add(last);
+    const callback = function (value) {
+        const index = Number(value);
+        if (!shown.has(index)) return null;
+        const date = new Date(times[index]);
+        const pad = part => String(part).padStart(2, '0');
+        const hours = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        const day = `${pad(date.getDate())}.${pad(date.getMonth() + 1)}`;
+        const earlier = [...shown].filter(item => item < index).sort((a, b) => a - b);
+        const previous = earlier.length ? new Date(times[earlier[earlier.length - 1]]) : null;
+        if (!previous || previous.getDate() !== date.getDate() || previous.getMonth() !== date.getMonth()) {
+            return `${day} ${hours}`;
+        }
+        return hours;
+    };
+    return { shown, callback };
+}
+
+export function updateLifepoChart(estimate) {
+    const canvas = document.getElementById('lifepoChart');
+    if (!canvas) return;
+    const sampled = Array.isArray(estimate?.series) ? estimate.series : [];
+    const labels = sampled.map(item => formatChartStamp(item.t));
+    const dataPoints = sampled.map(item => item.pct);
+    const ticks = lifepoTickPlan(sampled);
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const textColor = isDark ? '#e5e7eb' : '#374151';
+    const ctx = canvas.getContext('2d');
+
+    if (lifepoChartInstance) {
+        lifepoChartInstance.data.labels = labels;
+        lifepoChartInstance.data.datasets[0].data = dataPoints;
+        lifepoChartInstance.data.datasets[0].tension = 0;
+        lifepoChartInstance.options.scales.x.grid.color = gridColor;
+        lifepoChartInstance.options.scales.y.grid.color = gridColor;
+        lifepoChartInstance.options.scales.x.ticks.color = textColor;
+        lifepoChartInstance.options.scales.x.ticks.callback = ticks.callback;
+        lifepoChartInstance.options.scales.x.ticks.autoSkip = false;
+        lifepoChartInstance.options.scales.x.ticks.maxRotation = 0;
+        lifepoChartInstance.options.scales.y.ticks.color = textColor;
+        lifepoChartInstance.options.scales.y.min = 0;
+        lifepoChartInstance.options.scales.y.max = 100;
+        lifepoChartInstance.options.scales.y.ticks.stepSize = 20;
+        lifepoChartInstance.update();
+        lifepoChartInstance.resize();
+    } else {
+        lifepoChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'LiFePO4 %',
+                    data: dataPoints,
+                    borderColor: '#10B981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, datalabels: { display: false } },
+                scales: {
+                    y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: textColor, stepSize: 20 } },
+                    x: { grid: { display: false }, ticks: { color: textColor, autoSkip: false, maxRotation: 0, callback: ticks.callback } }
+                }
+            }
         });
     }
 }

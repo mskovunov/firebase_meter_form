@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.1011.2203';
-import * as Charts from './charts.js?v=16';
+import * as UI from './ui.js?v=2.1011.2232';
+import * as Charts from './charts.js?v=2.1011.2232';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -445,6 +445,7 @@ function refreshGraphs() {
     if (!docs.length && !meterDocs.length) return;
     Charts.updateChartConfig(UI.translations[currentLang]);
     if (docs.length) Charts.updateMainChart(docs);
+    Charts.updateLifepoChart(latestReserveEstimate);
     if (meterDocs.length) Charts.updateStatsChart(meterDocs, UI.translations, currentLang, graphDocs);
     const info = document.getElementById('t-data-info');
     if (info) info.innerText = UI.translations[currentLang].dataInfo;
@@ -520,6 +521,7 @@ function paintChargeBalance() {
         : null;
     UI.renderChargeSoc(latestReserveEstimate, currentLang);
     paintReserveCard();
+    Charts.updateLifepoChart(latestReserveEstimate);
 }
 
 function startChargeBalance() {

@@ -123,7 +123,7 @@
         <div
           class="p-4 border-t border-gray-200 dark:border-gray-700 text-center"
         >
-          <p class="text-xs text-gray-400">Ver 2.1011.2203</p>
+          <p class="text-xs text-gray-400">Ver 2.1011.2232</p>
         </div>
       </aside>
 
@@ -594,30 +594,6 @@
             class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
           >
             <button
-              onclick="window.toggleGraph('graph1-content', 'graph1-icon')"
-              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
-            >
-              <h2
-                id="t-graph-title"
-                class="text-sm font-bold text-gray-700 dark:text-gray-200"
-              >
-                Графік заряду
-              </h2>
-              <i
-                id="graph1-icon"
-                class="fas fa-chevron-down text-gray-400 rotate-icon"
-              ></i>
-            </button>
-            <div id="graph1-content" class="accordion-content">
-              <div class="p-4 relative min-h-[250px]">
-                <canvas id="energyChart"></canvas>
-              </div>
-            </div>
-          </div>
-          <div
-            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-          >
-            <button
               onclick="window.toggleGraph('graph2-content', 'graph2-icon')"
               class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
             >
@@ -625,7 +601,7 @@
                 id="t-stats-title"
                 class="text-sm font-bold text-gray-700 dark:text-gray-200"
               >
-                Статистика за добу
+                Наявність світла
               </h2>
               <i
                 id="graph2-icon"
@@ -635,6 +611,54 @@
             <div id="graph2-content" class="accordion-content">
               <div class="p-4 relative min-h-[300px]">
                 <canvas id="statsChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
+              onclick="window.toggleGraph('graph3-content', 'graph3-icon')"
+              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
+            >
+              <h2
+                id="t-lifepo-title"
+                class="text-sm font-bold text-gray-700 dark:text-gray-200"
+              >
+                Графік заряду LiFePO4
+              </h2>
+              <i
+                id="graph3-icon"
+                class="fas fa-chevron-down text-gray-400 rotate-icon"
+              ></i>
+            </button>
+            <div id="graph3-content" class="accordion-content">
+              <div class="p-4 relative min-h-[250px]">
+                <canvas id="lifepoChart"></canvas>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+          >
+            <button
+              onclick="window.toggleGraph('graph1-content', 'graph1-icon')"
+              class="w-full flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition focus:outline-none"
+            >
+              <h2
+                id="t-graph-title"
+                class="text-sm font-bold text-gray-700 dark:text-gray-200"
+              >
+                Графік заряду/розряду АКБ
+              </h2>
+              <i
+                id="graph1-icon"
+                class="fas fa-chevron-down text-gray-400 rotate-icon"
+              ></i>
+            </button>
+            <div id="graph1-content" class="accordion-content">
+              <div class="p-4 relative min-h-[250px]">
+                <canvas id="energyChart"></canvas>
               </div>
             </div>
           </div>
@@ -960,6 +984,6 @@
       </footer>
     </div>
 
-    <script type="module" src="js/app.js?v=2.1011.2203"></script>
+    <script type="module" src="js/app.js?v=2.1011.2232"></script>
   </body>
 </html>

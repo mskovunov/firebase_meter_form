@@ -36,7 +36,7 @@ export const translations = {
         socKnown: "Остаток сошёлся около {kwh} кВт·ч из {cap}: расчёт от пустой и от полной батареи пришёл в одну точку.",
         socWeek: "За 7 дней резерв забрал из АКБ около {week} кВт·ч — это {cycles} ёмкости. Зарядки за эти дни есть в расчёте только с момента, когда розетка появилась на сайте.",
         socFoot: "КПД зарядок принят 85%, инвертора 88%. Паузы без показаний не учитываются. Это не замер на клеммах АКБ.", 
-        gTitle: "График заряда/разряда АКБ", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
+        gTitle: "График заряда/разряда АКБ", gLifepoTitle: "График заряда LiFePO4", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
         dataInfo: "Данные за последние 7 дней",
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
         btnDay: "День", btnWeek: "Неделя", btnMonth: "Месяц",
@@ -89,7 +89,7 @@ export const translations = {
         socKnown: "Залишок зійшовся близько {kwh} кВт·год із {cap}: розрахунок від порожньої і від повної батареї прийшов в одну точку.",
         socWeek: "За 7 днів резерв забрав з АКБ близько {week} кВт·год — це {cycles} ємності. Зарядки за ці дні є в розрахунку лише з моменту, коли розетка з'явилась на сайті.",
         socFoot: "ККД зарядок прийнято 85%, інвертора 88%. Паузи без показів не враховуються. Це не вимір на клемах АКБ.", 
-        gTitle: "Графік заряду/розряду АКБ", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
+        gTitle: "Графік заряду/розряду АКБ", gLifepoTitle: "Графік заряду LiFePO4", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
         dataInfo: "Дані за останні 7 днів",
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
         btnDay: "День", btnWeek: "Тиждень", btnMonth: "Місяць",
@@ -142,7 +142,7 @@ export const translations = {
         socKnown: "The reserve converged near {kwh} kWh of {cap}: counting from empty and from full met at one point.",
         socWeek: "Over 7 days the backup drew about {week} kWh from the battery — {cycles} of its capacity. Charging in that period is included only from the moment the plug appeared on the site.",
         socFoot: "Charger efficiency is taken as 85%, inverter efficiency as 88%. Gaps without readings are skipped. This is not a measurement at the battery terminals.", 
-        gTitle: "Battery Charge/Discharge Chart", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
+        gTitle: "Battery Charge/Discharge Chart", gLifepoTitle: "LiFePO4 charge", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
         dataInfo: "Data for the last 7 days",
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
         btnDay: "Day", btnWeek: "Week", btnMonth: "Month",
@@ -266,7 +266,7 @@ export function applyLanguage(lang) {
     const ids = {
         't-subtitle': t.subtitle, 't-battery': t.battery, 't-reserve-runtime': t.runtimeTitle, 't-event': t.event,
         't-history': t.history, 't-last-on': t.lastOn, 't-last-off': t.lastOff,
-        't-graph-title': t.gTitle, 't-stats-title': t.gStatsTitle, 't-data-info': t.dataInfo,
+        't-graph-title': t.gTitle, 't-lifepo-title': t.gLifepoTitle, 't-stats-title': t.gStatsTitle, 't-data-info': t.dataInfo,
         'm-home': t.mHome, 'm-monitoring': t.mMonitoring, 'm-charge': t.mCharge, 'm-graphs': t.mGraphs, 
         'm-settings': t.mSettings, 'm-about': t.mAbout,
         't-mon-voltage': t.monVoltage, 't-mon-power': t.monPower, 't-mon-energy': t.monEnergy, 't-mon-daily': t.monDaily,
@@ -498,6 +498,25 @@ export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh
     const remainingWh = fullAt === null
         ? null
         : Math.min(capacityWh, Math.max(0, capacityWh + intoAfterWh - outAfterWh));
+    const series = [];
+    if (fullAt !== null && windowEnd > fullAt) {
+        const step = 30 * 60 * 1000;
+        const marks = [fullAt];
+        for (let mark = Math.ceil(fullAt / step) * step; mark < windowEnd; mark += step) {
+            if (mark !== fullAt) marks.push(mark);
+        }
+        if (marks[marks.length - 1] !== windowEnd) marks.push(windowEnd);
+        marks.forEach((mark, index) => {
+            const wh = index === marks.length - 1
+                ? remainingWh
+                : Math.min(capacityWh, Math.max(0,
+                    capacityWh
+                    + integrate(charges, chargeWatts, PLUG_GAP_MS, fullAt, mark) * CHARGE_AC_TO_BATTERY
+                    - integrate(meters, reserveWatts, METER_GAP_MS, fullAt, mark) / INVERTER_BATTERY_TO_AC
+                ));
+            series.push({ t: mark, pct: Math.round((wh / capacityWh) * 100) });
+        });
+    }
 
     let lowWh = 0;
     let highWh = capacityWh;
@@ -535,7 +554,8 @@ export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh
         weekBatteryWh,
         netWh: (fullAt === null ? intoBatteryWh : intoAfterWh) - (fullAt === null ? outOfBatteryWh : outAfterWh),
         lowWh,
-        highWh
+        highWh,
+        series
     };
 }
 
