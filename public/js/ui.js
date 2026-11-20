@@ -53,7 +53,34 @@ export const translations = {
         stBatteryTitle: "Ёмкость АКБ 12В", stBatteryDesc: "Суммарная ёмкость всех батарей 12 В, кВт·ч.",
         btnSaveBattery: "Сохранить", stBatteryInfo: "Оценка запаса на главной пересчитывается сразу.",
         stPlugTitle: "Розетка зарядки", stPlugDesc: "Как часто опрашивать розетку ecoFlow и по какому адресу в сети.",
-        btnSavePlug: "Сохранить", stPlugInfo: "Плата применит адрес и интервал со следующего опроса."
+        btnSavePlug: "Сохранить", stPlugInfo: "Плата применит адрес и интервал со следующего опроса.",
+        aboutTitle: "О системе",
+        aboutUpdates: "Последние версии",
+        aboutParagraphs: [
+            "Сайт показывает дом: есть ли свет на выходе инвертора, ориентировочный остаток аккумуляторов LiFePO4 12 В и работу их зарядки.",
+            "ESP32 стоит на выходе инвертора вместе со счётчиком PZEM-004T. Розетка ecoFlow стоит на линии щитка и питает зарядки 25 А и 20 А. Аккумулятор 18650 на плате питает саму плату, это не запас 12 В.",
+            "Показания уходят в Firebase, пока плата на связи. Значок в шапке зелёный, если свежий пакет пришёл за последние 3 минуты."
+        ],
+        aboutReleases: [
+            { version: "2.2011.1703", notes: [
+                "Добавлен раздел «Про систему»: описание проекта и пять последних опубликованных версий."
+            ]},
+            { version: "2.2011.1612", notes: [
+                "Плата больше не выключает Wi-Fi по цифре из скрипта и при старте включает его сама.",
+                "В шапке значок связи с платой: зелёный, жёлтый перечёркнутый или красный, если нет интернета в браузере.",
+                "На графике света пауза без показаний длиннее 3 минут рисуется серым «нет данных», а не продолжением последнего состояния."
+            ]},
+            { version: "2.1611.2206", notes: [
+                "График зарядки LiFePO4 стал столбцами киловатт-часов по дням. Считается по мощности розетки, собственный счётчик розетки не используется."
+            ]},
+            { version: "2.1011.2232", notes: [
+                "В графиках появилась зарядка LiFePO4. Порядок: свет, LiFePO4, аккумулятор 18650. Процент совпадал с главной, ось X была в часах."
+            ]},
+            { version: "2.1011.2203", notes: [
+                "На главной и на странице зарядки один и тот же остаток LiFePO4. 100% ставится, когда зарядки остановились, а напряжение линии осталось.",
+                "Под статусом «разряд» пишется примерное время работы от аккумулятора."
+            ]}
+        ]
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
@@ -107,7 +134,34 @@ export const translations = {
         stBatteryTitle: "Ємність АКБ 12В", stBatteryDesc: "Сумарна ємність усіх батарей 12 В, кВт·год.",
         btnSaveBattery: "Зберегти", stBatteryInfo: "Оцінка запасу на головній перераховується одразу.",
         stPlugTitle: "Розетка зарядки", stPlugDesc: "Як часто опитувати розетку ecoFlow і за якою адресою в мережі.",
-        btnSavePlug: "Зберегти", stPlugInfo: "Плата застосує адресу та інтервал з наступного опитування."
+        btnSavePlug: "Зберегти", stPlugInfo: "Плата застосує адресу та інтервал з наступного опитування.",
+        aboutTitle: "Про систему",
+        aboutUpdates: "Останні версії",
+        aboutParagraphs: [
+            "Сайт показує дім: чи є світло на виході інвертора, орієнтовний залишок акумуляторів LiFePO4 12 В і роботу їхньої зарядки.",
+            "ESP32 стоїть на виході інвертора разом із лічильником PZEM-004T. Розетка ecoFlow стоїть на лінії щитка і живить зарядки 25 А та 20 А. Акумулятор 18650 на платі живить саму плату, це не запас 12 В.",
+            "Покази йдуть у Firebase, поки плата на зв'язку. Значок у шапці зелений, якщо свіжий пакет прийшов за останні 3 хвилини."
+        ],
+        aboutReleases: [
+            { version: "2.2011.1703", notes: [
+                "Додано розділ «Про систему»: опис проєкту і п'ять останніх опублікованих версій."
+            ]},
+            { version: "2.2011.1612", notes: [
+                "Плата більше не вимикає Wi-Fi за цифрою зі скрипта і під час старту вмикає його сама.",
+                "У шапці значок зв'язку з платою: зелений, жовтий перекреслений або червоний, якщо в браузері немає інтернету.",
+                "На графіку світла пауза без показів довша за 3 хвилини малюється сірим «немає даних», а не продовженням останнього стану."
+            ]},
+            { version: "2.1611.2206", notes: [
+                "Графік зарядки LiFePO4 став стовпчиками кіловат-годин по днях. Рахується за потужністю розетки, власний лічильник розетки не використовується."
+            ]},
+            { version: "2.1011.2232", notes: [
+                "У графіках з'явилась зарядка LiFePO4. Порядок: світло, LiFePO4, акумулятор 18650. Відсоток збігався з головною, вісь X була в годинах."
+            ]},
+            { version: "2.1011.2203", notes: [
+                "На головній і на сторінці зарядки один і той самий залишок LiFePO4. 100% ставиться, коли зарядки зупинились, а напруга лінії лишилась.",
+                "Під статусом «розряд» пишеться приблизний час роботи від акумулятора."
+            ]}
+        ]
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
@@ -161,13 +215,40 @@ export const translations = {
         stBatteryTitle: "12V battery capacity", stBatteryDesc: "Total capacity of all 12V batteries, kWh.",
         btnSaveBattery: "Save", stBatteryInfo: "The home estimate updates immediately.",
         stPlugTitle: "Charging plug", stPlugDesc: "How often to poll the ecoFlow plug, and its address on the network.",
-        btnSavePlug: "Save", stPlugInfo: "The board applies the address and interval on the next poll."
+        btnSavePlug: "Save", stPlugInfo: "The board applies the address and interval on the next poll.",
+        aboutTitle: "About",
+        aboutUpdates: "Recent versions",
+        aboutParagraphs: [
+            "The site shows the house: whether the inverter output has power, an approximate reserve of the 12 V LiFePO4 batteries, and how their charging is going.",
+            "The ESP32 sits on the inverter output with a PZEM-004T meter. The ecoFlow plug is on the panel line and feeds the 25 A and 20 A chargers. The 18650 on the board powers the board itself, not the 12 V reserve.",
+            "Readings go to Firebase while the board is online. The header icon is green when a fresh packet arrived within the last 3 minutes."
+        ],
+        aboutReleases: [
+            { version: "2.2011.1703", notes: [
+                "Added the About page: a project description and the five latest published versions."
+            ]},
+            { version: "2.2011.1612", notes: [
+                "The board no longer turns Wi-Fi off from the script digit, and it turns Wi-Fi on at startup.",
+                "The header icon shows the link to the board: green, amber and crossed out, or red when the browser itself is offline.",
+                "On the light chart a gap longer than 3 minutes is gray \"no data\" instead of a continuation of the last state."
+            ]},
+            { version: "2.1611.2206", notes: [
+                "The LiFePO4 charge chart became daily kilowatt-hour bars. It integrates the plug power and does not use the plug's own energy counter."
+            ]},
+            { version: "2.1011.2232", notes: [
+                "The graphs gained a LiFePO4 charge chart. Order: light, LiFePO4, 18650 battery. The percent matched the home card, and the X axis was in hours."
+            ]},
+            { version: "2.1011.2203", notes: [
+                "Home and the charge page show the same LiFePO4 reserve. 100% is set when the chargers stop and the line voltage stays.",
+                "Under the discharge status the card shows the approximate runtime left on the battery."
+            ]}
+        ]
     }
 };
 
 export function initUI(config) {
     // Setup Navigation
-    const navs = ['home', 'monitoring', 'charge', 'graphs', 'settings'];
+    const navs = ['home', 'monitoring', 'charge', 'graphs', 'settings', 'about'];
     navs.forEach(view => {
         const navEl = document.getElementById(`nav-${view}`);
         if(navEl) {
@@ -222,7 +303,7 @@ export function initUI(config) {
 }
 
 export function showView(viewName) {
-    const views = ['home', 'monitoring', 'charge', 'graphs', 'settings'];
+    const views = ['home', 'monitoring', 'charge', 'graphs', 'settings', 'about'];
 
     views.forEach(v => {
         const el = document.getElementById(`view-${v}`);
@@ -295,10 +376,45 @@ export function applyLanguage(lang) {
         't-charge-power': t.chargePower, 't-charge-energy': t.chargeEnergy,
         'charge-note': t.chargeNote, 't-charge-soc': t.socTitle
     };
-    for (const [id, text] of Object.entries(ids)) {
+        for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
         if(el) el.innerText = text;
     }
+    renderAbout(lang);
+}
+
+function renderAbout(lang) {
+    const t = translations[lang] || translations.uk;
+    const title = document.getElementById("t-about-title");
+    const updates = document.getElementById("t-about-updates");
+    const body = document.getElementById("about-body");
+    const log = document.getElementById("about-log");
+    if (title) title.textContent = t.aboutTitle;
+    if (updates) updates.textContent = t.aboutUpdates;
+    if (body) {
+        body.replaceChildren(...(t.aboutParagraphs || []).map((text) => {
+            const p = document.createElement("p");
+            p.textContent = text;
+            return p;
+        }));
+    }
+    if (!log) return;
+    log.replaceChildren(...(t.aboutReleases || []).map((release) => {
+        const card = document.createElement("article");
+        card.className = "bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-200 dark:border-gray-700";
+        const heading = document.createElement("div");
+        heading.className = "text-xs font-bold tracking-wider text-blue-600 dark:text-blue-400";
+        heading.textContent = `Ver ${release.version}`;
+        const list = document.createElement("ul");
+        list.className = "mt-2 list-disc space-y-1 pl-4 text-sm leading-relaxed text-gray-700 dark:text-gray-200";
+        (release.notes || []).forEach((note) => {
+            const item = document.createElement("li");
+            item.textContent = note;
+            list.appendChild(item);
+        });
+        card.append(heading, list);
+        return card;
+    }));
 }
 
 function updateThemeIcon() {

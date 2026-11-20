@@ -1,0 +1,20 @@
+---
+description: When the user says "сделай деплой", bump the site version, update About, commit, push, and deploy hosting.
+alwaysApply: true
+---
+
+# Сделай деплой
+
+When the user's message asks to publish with the phrase **сделай деплой**, do these steps in order before the reply. Do not run them when the phrase is only being defined or quoted as a rule.
+
+1. Set the site version to `Ver 2.DDMM.HHMM` from the current local time, UTC+2. Update every copy together:
+   - sidebar text in `public/index.html`
+   - `js/app.js?v=` in `public/index.html`
+   - `ui.js` and `charts.js` imports in `public/js/app.js`
+   - `ui.js` import in `public/js/charts.js`
+2. Add that version to **Про систему**. In `public/js/ui.js`, prepend the same release to `aboutReleases` in `uk`, `ru`, and `en`. The note describes this deploy. Keep the newest release first and leave only the 5 newest. Drop the oldest.
+3. Commit the changes and push them to the current branch. On PowerShell pass the message with a here-string. Do not change git config, skip hooks, or force-push.
+4. Deploy hosting only: `$env:NODE_OPTIONS='--use-system-ca'; firebase deploy --only hosting --project meter-form`. Do not deploy Firestore rules in the same command.
+5. Reply in Russian. Confirm each step and name the published version, for example `2.2011.1700`, plus https://meter-form.web.app.
+
+Do not print Wi-Fi passwords, Firebase passwords, API keys, or script keys.
