@@ -41,7 +41,10 @@ function doGet(e) {
 
   var nextInterval = 300; 
   var pzemInterval = 60;  
-  var wifiOn = 1; // По умолчанию ВКЛ
+  // Цифра Wi-Fi в ответе больше не читается из Firestore.
+  // Строка "0" раньше проходила проверку if (wo) и записывалась плате в NVS.
+  // После этого плата не вызывала WiFi.begin и уже не могла получить исправление.
+  var wifiOn = 1;
   var gsmOn = 1;  // По умолчанию ВКЛ
 
   try {
@@ -64,10 +67,6 @@ function doGet(e) {
          // 2. Интервал PZEM
          var pi = getVal(json.fields.pzem_interval);
          if (pi) pzemInterval = parseInt(pi);
-
-         // 3. Wi-Fi Enabled
-         var wo = getVal(json.fields.wifi_enabled);
-         if (wo) wifiOn = parseInt(wo);
 
          // 4. GSM Enabled
          var go = getVal(json.fields.gsm_enabled);

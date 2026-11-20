@@ -36,7 +36,8 @@ export const translations = {
         socKnown: "Остаток сошёлся около {kwh} кВт·ч из {cap}: расчёт от пустой и от полной батареи пришёл в одну точку.",
         socWeek: "За 7 дней резерв забрал из АКБ около {week} кВт·ч — это {cycles} ёмкости. Зарядки за эти дни есть в расчёте только с момента, когда розетка появилась на сайте.",
         socFoot: "КПД зарядок принят 85%, инвертора 88%. Паузы без показаний не учитываются. Это не замер на клеммах АКБ.", 
-        gTitle: "График заряда/разряда АКБ", gLifepoTitle: "Зарядка LiFePO4, кВт·ч по дням", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", hShort: "ч", mShort: "мин", 
+        gTitle: "График заряда/разряда АКБ", gLifepoTitle: "Зарядка LiFePO4, кВт·ч по дням", gStatsTitle: "Наличие света (часы по дням)", statOn: "Свет есть", statReserve: "Резерв", statOff: "Света нет", statUnknown: "Нет данных", hShort: "ч", mShort: "мин",
+        linkOnline: "Связь с платой есть", linkStale: "Нет связи с платой", linkOffline: "В браузере нет интернета", linkWait: "Жду первые показания", 
         dataInfo: "Данные за последние 7 дней",
         monVoltage: "Напряжение", monPower: "Мощность", monEnergy: "Счетчик", monDaily: "Сегодня",
         btnDay: "День", btnWeek: "Неделя", btnMonth: "Месяц",
@@ -89,7 +90,8 @@ export const translations = {
         socKnown: "Залишок зійшовся близько {kwh} кВт·год із {cap}: розрахунок від порожньої і від повної батареї прийшов в одну точку.",
         socWeek: "За 7 днів резерв забрав з АКБ близько {week} кВт·год — це {cycles} ємності. Зарядки за ці дні є в розрахунку лише з моменту, коли розетка з'явилась на сайті.",
         socFoot: "ККД зарядок прийнято 85%, інвертора 88%. Паузи без показів не враховуються. Це не вимір на клемах АКБ.", 
-        gTitle: "Графік заряду/розряду АКБ", gLifepoTitle: "Зарядка LiFePO4, кВт·год по днях", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", hShort: "год", mShort: "хв", 
+        gTitle: "Графік заряду/розряду АКБ", gLifepoTitle: "Зарядка LiFePO4, кВт·год по днях", gStatsTitle: "Наявність світла (години по днях)", statOn: "Світло є", statReserve: "Резерв", statOff: "Світла немає", statUnknown: "Немає даних", hShort: "год", mShort: "хв",
+        linkOnline: "Зв'язок з платою є", linkStale: "Немає зв'язку з платою", linkOffline: "У браузері немає інтернету", linkWait: "Чекаю перші покази", 
         dataInfo: "Дані за останні 7 днів",
         monVoltage: "Напруга", monPower: "Потужність", monEnergy: "Лічильник", monDaily: "Сьогодні",
         btnDay: "День", btnWeek: "Тиждень", btnMonth: "Місяць",
@@ -142,7 +144,8 @@ export const translations = {
         socKnown: "The reserve converged near {kwh} kWh of {cap}: counting from empty and from full met at one point.",
         socWeek: "Over 7 days the backup drew about {week} kWh from the battery — {cycles} of its capacity. Charging in that period is included only from the moment the plug appeared on the site.",
         socFoot: "Charger efficiency is taken as 85%, inverter efficiency as 88%. Gaps without readings are skipped. This is not a measurement at the battery terminals.", 
-        gTitle: "Battery Charge/Discharge Chart", gLifepoTitle: "LiFePO4 charging, kWh per day", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", hShort: "h", mShort: "m", 
+        gTitle: "Battery Charge/Discharge Chart", gLifepoTitle: "LiFePO4 charging, kWh per day", gStatsTitle: "Power Availability (Hours/Day)", statOn: "Grid power", statReserve: "Backup", statOff: "No power", statUnknown: "No data", hShort: "h", mShort: "m",
+        linkOnline: "Board is online", linkStale: "No link to the board", linkOffline: "This browser is offline", linkWait: "Waiting for the first reading", 
         dataInfo: "Data for the last 7 days",
         monVoltage: "Voltage", monPower: "Power", monEnergy: "Meter", monDaily: "Today",
         btnDay: "Day", btnWeek: "Week", btnMonth: "Month",
@@ -977,6 +980,51 @@ export function renderReserveRuntime(reading, estimate, currentLang, chargeReadi
     }
 
     paint("gray", t.runtimeIdle, shownValue, levelNote, shownBar, "bg-gray-400");
+}
+
+const BOARD_LINK_MS = 3 * 60 * 1000;
+
+function sampleAgeMs(sample) {
+    const unix = Number(sample?.timestamp_unix);
+    if (Number.isFinite(unix) && unix > 0) return Date.now() - unix * 1000;
+    const stamp = sample?.timestamp?.toDate ? sample.timestamp.toDate() : null;
+    if (stamp instanceof Date && !Number.isNaN(stamp.getTime())) return Date.now() - stamp.getTime();
+    return null;
+}
+
+export function renderBoardLink(meterReading, eventReading, currentLang) {
+    const icon = document.getElementById("link-indicator");
+    const glyph = document.getElementById("link-indicator-icon");
+    if (!icon || !glyph) return;
+
+    const t = translations[currentLang] || translations.uk;
+    const ages = [sampleAgeMs(meterReading), sampleAgeMs(eventReading)].filter(age => age != null);
+    const age = ages.length ? Math.min(...ages) : null;
+    const browserOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+
+    let name = "fa-wifi";
+    let color = "text-gray-400";
+    let title = t.linkWait;
+    if (browserOffline) {
+        name = "fa-wifi-slash";
+        color = "text-red-500";
+        title = t.linkOffline;
+    } else if (age == null) {
+        title = t.linkWait;
+    } else if (age > BOARD_LINK_MS) {
+        name = "fa-wifi-slash";
+        color = "text-amber-500";
+        const seen = new Date(Date.now() - age);
+        title = `${t.linkStale}: ${seen.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+    } else {
+        color = "text-green-500";
+        title = t.linkOnline;
+    }
+
+    icon.title = title;
+    icon.setAttribute("aria-label", title);
+    icon.className = `inline-flex h-8 w-8 items-center justify-center text-lg ${color}`;
+    glyph.className = `fas ${name}`;
 }
 
 export function renderHome(docs, currentLang) {

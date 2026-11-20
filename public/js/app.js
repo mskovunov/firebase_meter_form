@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.1611.2206';
-import * as Charts from './charts.js?v=2.1611.2206';
+import * as UI from './ui.js?v=2.2011.1612';
+import * as Charts from './charts.js?v=2.2011.1612';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     UI.applyLanguage(currentLang);
+    paintBoardLink();
     // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
     Charts.updateChartConfig(UI.translations[currentLang]);
     startMainListener();
@@ -69,10 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     startChargeListener();
     startChargeBalance();
     setInterval(() => {
+        paintBoardLink();
         if (!latestChargeReading) return;
         UI.renderCharge(latestChargeReading, currentLang);
         if (latestSupplyReading) paintLiveSupply();
     }, 20000);
+    window.addEventListener("online", paintBoardLink);
+    window.addEventListener("offline", paintBoardLink);
     fetchTodayStart();
     loadSettingsFromDB();
     
@@ -305,6 +309,7 @@ function edgesForDisplay() {
 }
 
 function paintLiveSupply() {
+    paintBoardLink();
     if (!latestSupplyReading) return;
     rememberInverterOff(latestSupplyReading);
     const shown = UI.supplyReadingForDisplay(latestSupplyReading, currentDocs);
@@ -496,9 +501,14 @@ function startGraphsListener() {
     }, (err) => console.error("Meter stats listener error:", err));
 }
 
+function paintBoardLink() {
+    UI.renderBoardLink(latestSupplyReading, currentDocs[0], currentLang);
+}
+
 function refreshData() {
     // ОТПРАВЛЯЕМ ПЕРЕВОДЫ В ГРАФИКИ
     Charts.updateChartConfig(UI.translations[currentLang]);
+    paintBoardLink();
     if(currentDocs.length > 0) {
         UI.renderHome(currentDocs, currentLang);
     }

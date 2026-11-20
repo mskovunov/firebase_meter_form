@@ -159,10 +159,12 @@
 
     void loadFlags()
     {
-        prefs.begin("net", true);
-        ENABLE_WIFI = prefs.getBool("wifi", true);
+        prefs.begin("net", false);
         ENABLE_GSM = prefs.getBool("gsm", false);
+        if (!prefs.getBool("wifi", true))
+            prefs.putBool("wifi", true);
         prefs.end();
+        ENABLE_WIFI = true;
     }
 
     void persistFlags()
@@ -722,16 +724,9 @@
                         if (newPzem >= 10 && newPzem <= 3600)
                             sendIntervalPzem = newPzem * 1000;
 
-                        bool newWifiState = (sWifi.toInt() == 1);
                         bool newGsmState = (sGsm.toInt() == 1);
-                        bool flagsChanged = (ENABLE_WIFI != newWifiState) || (ENABLE_GSM != newGsmState);
-
-                        if (ENABLE_WIFI != newWifiState)
-                        {
-                            ENABLE_WIFI = newWifiState;
-                            SerialMon.print("!!! WIFI Config Changed: ");
-                            SerialMon.println(ENABLE_WIFI ? "ON" : "OFF");
-                        }
+                        bool flagsChanged = (ENABLE_GSM != newGsmState);
+                        (void)sWifi;
                         if (ENABLE_GSM != newGsmState)
                         {
                             ENABLE_GSM = newGsmState;

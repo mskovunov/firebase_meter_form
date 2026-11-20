@@ -1,5 +1,5 @@
 // js/charts.js
-import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.1611.2206';
+import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.2011.1612';
 
 try {
     if (typeof ChartDataLabels !== 'undefined') {
@@ -191,6 +191,7 @@ export function updateStatsChart(docs, translations, currentLang, events) {
 
     const dataOn = labels.map(day => stats[day].grid.toFixed(2));
     const dataReserve = labels.map(day => stats[day].reserve.toFixed(2));
+    const dataUnknown = labels.map(day => stats[day].unknown.toFixed(2));
     const dataOff = labels.map(day => -stats[day].off.toFixed(2));
     const isDark = document.documentElement.classList.contains('dark');
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
@@ -212,6 +213,7 @@ export function updateStatsChart(docs, translations, currentLang, events) {
     const datasets = [
         { label: t.statReserve, data: dataReserve, backgroundColor: '#F59E0B', borderRadius: 2, datalabels: { color: '#1f2937' } },
         { label: t.statOn, data: dataOn, backgroundColor: '#10B981', borderRadius: 2 },
+        { label: t.statUnknown, data: dataUnknown, backgroundColor: '#9CA3AF', borderRadius: 2, datalabels: { color: '#1f2937' } },
         { label: t.statOff, data: dataOff, backgroundColor: '#EF4444', borderRadius: 2 }
     ];
 
@@ -294,10 +296,11 @@ function calculateSupplyStats(docs, events) {
         const dayKey = formatDateDDMM(date);
         if (!stats[dayKey]) {
             const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-            stats[dayKey] = { grid: 0, reserve: 0, off: 0, sort: dayStart.getTime() };
+            stats[dayKey] = { grid: 0, reserve: 0, off: 0, unknown: 0, sort: dayStart.getTime() };
         }
         if (state === 'grid') stats[dayKey].grid += hours;
         else if (state === 'reserve') stats[dayKey].reserve += hours;
+        else if (state === 'unknown') stats[dayKey].unknown += hours;
         else stats[dayKey].off += hours;
     };
 
@@ -326,15 +329,36 @@ function calculateSupplyStats(docs, events) {
         if (to > cursor) advance(cursor, to, state);
     };
 
+    const SUPPLY_HOLD_MS = 180000;
+    const paintSpan = (from, to, state) => {
+        const span = to - from;
+        if (span <= SUPPLY_HOLD_MS) {
+            advanceSplit(from, to, state);
+            return;
+        }
+        const holdEnd = new Date(from.getTime() + SUPPLY_HOLD_MS);
+        advanceSplit(from, holdEnd, state);
+        let cursor = holdEnd;
+        for (const [offStart, offEnd] of outages) {
+            if (offEnd <= cursor || offStart >= to) continue;
+            const cutStart = offStart > cursor ? offStart : cursor;
+            const cutEnd = offEnd < to ? offEnd : to;
+            if (cutStart > cursor) advance(cursor, cutStart, "unknown");
+            if (cutEnd > cutStart) advance(cutStart, cutEnd, "blackout");
+            cursor = new Date(cutEnd);
+        }
+        if (to > cursor) advance(cursor, to, "unknown");
+    };
+
     for (let i = 1; i < readings.length; i++) {
         let currentTime = new Date(Number(readings[i].timestamp_unix) * 1000);
         if (currentTime > now) currentTime = now;
         if (currentTime < lastTime) continue;
-        advanceSplit(lastTime, currentTime, currentState);
+        paintSpan(lastTime, currentTime, currentState);
         lastTime = currentTime;
         currentState = classifySupply(readings[i]);
     }
-    if (now > lastTime) advanceSplit(lastTime, now, currentState);
+    if (now > lastTime) paintSpan(lastTime, now, currentState);
     return stats;
 }
 
