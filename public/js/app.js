@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.2011.1703';
-import * as Charts from './charts.js?v=2.2011.1703';
+import * as UI from './ui.js?v=2.2211.1717';
+import * as Charts from './charts.js?v=2.2211.1717';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     startMainListener();
     startSupplyEdgesListener();
     startChargeListener();
-    startChargeBalance();
+    paintCachedBalance();
     setInterval(() => {
         paintBoardLink();
         if (!latestChargeReading) return;
@@ -125,6 +125,7 @@ function handleViewChange(viewName) {
     }
 
     if (viewName === 'graphs') {
+        startChargeBalance();
         startGraphsListener();
     } else {
         stopGraphsListener();
@@ -366,25 +367,6 @@ function applyLatestSupply(readings) {
     paintLiveSupply();
 }
 
-function startSupplyEdgesListener() {
-    if (supplyEdgesUnsubscribe) return;
-    const qEdges = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(SUPPLY_EDGE_LIMIT));
-    supplyEdgesUnsubscribe = onSnapshot(qEdges, (snapshot) => {
-        if (snapshot.metadata.fromCache) return;
-        const docs = snapshot.docs;
-        supplyEdgeReadings = docs.map(item => item.data());
-        applyLatestSupply(supplyEdgeReadings);
-        const newest = supplyEdgeReadings.find(UI.isPlausibleMeterReading);
-        const stateOn = newest ? Number(newest.voltage) >= 80 : null;
-        if (supplyHistoryReady && cachedSupplyEdges?.complete && cachedSupplyEdges.stateOn === stateOn) {
-            UI.renderSupplyEdgeResult(edgesForDisplay());
-            paintLiveSupply();
-            return;
-        }
-        extendSupplyEdges(docs, stateOn);
-    }, (err) => console.error("Supply edges listener error:", err));
-}
-
 async function extendSupplyEdges(docs, stateOn) {
     const requestId = ++supplyEdgeRequest;
     let combined = docs.map(item => item.data());
@@ -422,8 +404,155 @@ async function extendSupplyEdges(docs, stateOn) {
     await lookupSilenceGap();
     if (requestId !== supplyEdgeRequest) return;
     supplyHistoryReady = true;
-    UI.renderSupplyEdgeResult(edgesForDisplay());
+    const shown = edgesForDisplay();
+    cachedSupplyEdges = { ...cachedSupplyEdges, on: shown.on, off: shown.off, complete: true };
+    const newestUnix = combined.reduce((max, reading) => Math.max(max, Number(reading.timestamp_unix) || 0), 0);
+    supplyCursorUnix = newestUnix;
+    supplyStateOn = stateOn;
+    supplyEdgeHistory = [];
+    UI.renderSupplyEdgeResult(shown);
     paintLiveSupply();
+    await saveSupplyState();
+    supplyStateReady = true;
+}
+
+function startSupplyEdgesListener() {
+    if (supplyEdgesUnsubscribe) return;
+    const qEdges = query(collection(db, "meter_readings"), orderBy("timestamp_unix", "desc"), limit(5));
+    supplyEdgesUnsubscribe = onSnapshot(qEdges, (snapshot) => {
+        if (snapshot.metadata.fromCache) return;
+        supplyEdgeReadings = snapshot.docs.map(item => item.data());
+        applyLatestSupply(supplyEdgeReadings);
+        if (supplyStateReady) applySupplyTail(supplyEdgeReadings);
+        else ensureSupplyState();
+    }, (err) => console.error("Supply edges listener error:", err));
+}
+
+let supplyStateReady = false;
+let supplyEnsureStarted = false;
+let supplyCursorUnix = 0;
+let supplyStateOn = null;
+let supplySaveTimer = 0;
+
+function restoreSupplyState(data) {
+    supplyCursorUnix = Number(data.cursorUnix) || 0;
+    supplyStateOn = typeof data.stateOn === "boolean" ? data.stateOn : null;
+    cachedSupplyEdges = {
+        on: Number.isFinite(data.onMs) ? new Date(data.onMs) : null,
+        off: Number.isFinite(data.offMs) ? new Date(data.offMs) : null,
+        complete: true,
+        stateOn: supplyStateOn
+    };
+    supplyHistoryReady = true;
+    UI.renderSupplyEdgeResult(edgesForDisplay());
+}
+
+async function saveSupplyState() {
+    const edges = cachedSupplyEdges || {};
+    await setDoc(doc(db, "esp32_settings", "supply_state"), {
+        onMs: edges.on instanceof Date ? edges.on.getTime() : null,
+        offMs: edges.off instanceof Date ? edges.off.getTime() : null,
+        cursorUnix: supplyCursorUnix || null,
+        stateOn: supplyStateOn,
+        complete: true,
+        building: false,
+        updated_at: new Date()
+    }, { merge: true });
+}
+
+function scheduleSupplySave() {
+    clearTimeout(supplySaveTimer);
+    supplySaveTimer = setTimeout(() => {
+        saveSupplyState().catch(err => console.error("Supply state save error:", err));
+    }, 5000);
+}
+
+function applySupplyTail(readings) {
+    const ordered = (readings || [])
+        .filter(UI.isPlausibleMeterReading)
+        .sort((a, b) => Number(a.timestamp_unix) - Number(b.timestamp_unix));
+    let changed = false;
+    ordered.forEach(reading => {
+        const unix = Number(reading.timestamp_unix);
+        if (!Number.isFinite(unix) || unix <= supplyCursorUnix) return;
+        const on = Number(reading.voltage) >= 80;
+        const at = unix * 1000;
+        const previousAt = supplyCursorUnix * 1000;
+        if (supplyCursorUnix && on && supplyStateOn && at - previousAt >= 180000) {
+            const known = UI.silenceOutageEdges([
+                { timestamp_unix: supplyCursorUnix, voltage: 220, current: 0, power: 0, energy: 1 },
+                { timestamp_unix: unix, voltage: 220, current: 0, power: 0, energy: 1 }
+            ], currentDocs);
+            if (known) {
+                if (!cachedSupplyEdges.off || known.off > cachedSupplyEdges.off) cachedSupplyEdges.off = known.off;
+                if (!cachedSupplyEdges.on || known.on > cachedSupplyEdges.on) cachedSupplyEdges.on = known.on;
+            }
+        }
+        if (supplyStateOn !== null && on !== supplyStateOn) {
+            if (!cachedSupplyEdges) cachedSupplyEdges = { on: null, off: null, complete: true };
+            if (on) cachedSupplyEdges.on = new Date(at);
+            else cachedSupplyEdges.off = new Date(at);
+        }
+        supplyStateOn = on;
+        supplyCursorUnix = unix;
+        changed = true;
+    });
+    if (!changed) return;
+    if (cachedSupplyEdges) cachedSupplyEdges.stateOn = supplyStateOn;
+    supplyHistoryReady = true;
+    UI.renderSupplyEdgeResult(edgesForDisplay());
+    scheduleSupplySave();
+}
+
+async function catchUpSupply(cursorUnix) {
+    let cursor = cursorUnix;
+    while (cursor) {
+        const snap = await getDocs(query(
+            collection(db, "meter_readings"),
+            where("timestamp_unix", ">", cursor),
+            orderBy("timestamp_unix", "asc"),
+            limit(200)
+        ));
+        if (snap.empty) break;
+        applySupplyTail(snap.docs.map(item => item.data()));
+        const last = Number(snap.docs[snap.docs.length - 1].data().timestamp_unix);
+        if (!Number.isFinite(last) || last <= cursor || snap.size < 200) break;
+        cursor = last;
+    }
+}
+
+async function ensureSupplyState() {
+    if (supplyEnsureStarted) return;
+    supplyEnsureStarted = true;
+    const ref = doc(db, "esp32_settings", "supply_state");
+    try {
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? snap.data() : null;
+        const freshBuild = data?.building && data.updated_at?.toDate && Date.now() - data.updated_at.toDate().getTime() < 120000;
+        if (data?.complete && Number.isFinite(Number(data.cursorUnix))) {
+            restoreSupplyState(data);
+            await catchUpSupply(supplyCursorUnix);
+            supplyStateReady = true;
+            applySupplyTail(supplyEdgeReadings);
+            return;
+        }
+        if (freshBuild) {
+            supplyEnsureStarted = false;
+            setTimeout(ensureSupplyState, 4000);
+            return;
+        }
+        await setDoc(ref, { building: true, updated_at: new Date() }, { merge: true });
+        const recent = await getDocs(query(
+            collection(db, "meter_readings"),
+            orderBy("timestamp_unix", "desc"),
+            limit(SUPPLY_EDGE_LIMIT)
+        ));
+        const newest = recent.docs.map(item => item.data()).find(UI.isPlausibleMeterReading);
+        await extendSupplyEdges(recent.docs, newest ? Number(newest.voltage) >= 80 : null);
+    } catch (err) {
+        console.error("Supply state error:", err);
+        supplyEnsureStarted = false;
+    }
 }
 
 function startMainListener() {
@@ -524,23 +653,393 @@ function paintReserveCard() {
     UI.renderReserveRuntime(shown, latestReserveEstimate, currentLang, latestChargeReading);
 }
 
-function paintChargeBalance() {
-    if (!chargeBalanceStarted) return;
-    latestReserveEstimate = (chargeHistory.length || socMeterDocs.length)
-        ? UI.estimateLifepoReserve(socMeterDocs, chargeHistory, batteryCapacityKwh)
-        : null;
+const BALANCE_KEY = "lifepo-balance-v1";
+const balance = {
+    started: false,
+    capacityKwh: null,
+    fullAt: null,
+    remainingWh: null,
+    intoWh: 0,
+    outWh: 0,
+    weekWh: 0,
+    plugAfter: 0,
+    meterAfter: 0,
+    lastPlug: null,
+    lastMeter: null,
+    meterRelaxed: false,
+    unsubs: []
+};
+
+function chargeTime(reading) {
+    if (reading?.timestamp?.toDate) return reading.timestamp.toDate().getTime();
+    const seconds = Number(reading?.timestamp?.seconds);
+    return Number.isFinite(seconds) ? seconds * 1000 : null;
+}
+
+function meterTime(reading) {
+    const unix = Number(reading?.timestamp_unix);
+    return Number.isFinite(unix) ? unix * 1000 : null;
+}
+
+function newestReading(readings, timeOf) {
+    return readings.reduce((best, item) => {
+        const t = timeOf(item);
+        if (!Number.isFinite(t)) return best;
+        if (!best || t > best.t) return { t, item };
+        return best;
+    }, null);
+}
+
+function asCharge(saved) {
+    if (!saved || !Number.isFinite(saved.t)) return null;
+    return {
+        power: saved.power,
+        on: saved.on === true,
+        voltage: saved.voltage,
+        timestamp: { toDate: () => new Date(saved.t) }
+    };
+}
+
+function asMeter(saved) {
+    if (!saved || !Number.isFinite(saved.t)) return null;
+    return {
+        voltage: saved.voltage,
+        current: saved.current,
+        power: saved.power,
+        energy: saved.energy,
+        timestamp_unix: Math.floor(saved.t / 1000)
+    };
+}
+
+function readBalanceCache() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(BALANCE_KEY) || "null");
+        if (!parsed || parsed.v !== 1 || !Number.isFinite(parsed.fullAt)) return null;
+        return parsed;
+    } catch (e) {
+        return null;
+    }
+}
+
+function writeBalanceCache() {
+    if (!Number.isFinite(balance.fullAt)) return;
+    localStorage.setItem(BALANCE_KEY, JSON.stringify({
+        v: 1,
+        capacityKwh: batteryCapacityKwh,
+        fullAt: balance.fullAt,
+        remainingWh: balance.remainingWh,
+        intoWh: balance.intoWh,
+        outWh: balance.outWh,
+        weekWh: balance.weekWh,
+        plugAfter: balance.plugAfter,
+        meterAfter: balance.meterAfter,
+        lastPlug: balance.lastPlug,
+        lastMeter: balance.lastMeter,
+        savedAt: Date.now()
+    }));
+}
+
+let lifepoSaveTimer = 0;
+
+function scheduleLifepoSave() {
+    if (!Number.isFinite(balance.fullAt)) return;
+    clearTimeout(lifepoSaveTimer);
+    lifepoSaveTimer = setTimeout(() => {
+        setDoc(doc(db, "esp32_settings", "lifepo_state"), {
+            v: 1,
+            capacityKwh: batteryCapacityKwh,
+            fullAt: balance.fullAt,
+            remainingWh: balance.remainingWh,
+            intoWh: balance.intoWh || 0,
+            outWh: balance.outWh || 0,
+            weekWh: balance.weekWh || 0,
+            plugAfter: balance.plugAfter || balance.fullAt,
+            meterAfter: balance.meterAfter || balance.fullAt,
+            lastPlug: balance.lastPlug,
+            lastMeter: balance.lastMeter,
+            building: false,
+            savedAt: Date.now(),
+            updated_at: new Date()
+        }, { merge: true }).catch(err => console.error("LiFePO state save error:", err));
+    }, 5000);
+}
+
+function applyBalanceRecord(record) {
+    balance.fullAt = record.fullAt;
+    balance.remainingWh = record.remainingWh;
+    balance.intoWh = record.intoWh || 0;
+    balance.outWh = record.outWh || 0;
+    balance.weekWh = record.weekWh || 0;
+    balance.plugAfter = record.plugAfter || record.fullAt;
+    balance.meterAfter = record.meterAfter || record.fullAt;
+    balance.lastPlug = record.lastPlug || null;
+    balance.lastMeter = record.lastMeter || null;
+    latestReserveEstimate = {
+        ready: true,
+        capacityKwh: record.capacityKwh,
+        from: record.fullAt,
+        to: record.savedAt || Date.now(),
+        fullAt: record.fullAt,
+        chargeAcWh: 0,
+        intoBatteryWh: balance.intoWh,
+        outOfBatteryWh: balance.outWh,
+        weekBatteryWh: balance.weekWh,
+        netWh: balance.intoWh - balance.outWh,
+        lowWh: record.remainingWh,
+        highWh: record.remainingWh
+    };
+    paintReserveCard();
+    UI.renderChargeSoc(latestReserveEstimate, currentLang);
+}
+
+function paintBalanceEstimate() {
     UI.renderChargeSoc(latestReserveEstimate, currentLang);
     paintReserveCard();
-    Charts.updateLifepoChart(UI.lifepoDailyCharge(chargeHistory));
+    if (weekHistoryReady) Charts.updateLifepoChart(UI.lifepoDailyCharge(chargeHistory));
+}
+
+function paintCachedBalance() {
+    const cache = readBalanceCache();
+    if (!cache) return;
+    balance.fullAt = cache.fullAt;
+    balance.remainingWh = cache.remainingWh;
+    balance.intoWh = cache.intoWh || 0;
+    balance.outWh = cache.outWh || 0;
+    balance.weekWh = cache.weekWh || 0;
+    balance.plugAfter = cache.plugAfter || cache.fullAt;
+    balance.meterAfter = cache.meterAfter || cache.fullAt;
+    balance.lastPlug = cache.lastPlug || null;
+    balance.lastMeter = cache.lastMeter || null;
+    latestReserveEstimate = {
+        ready: true,
+        capacityKwh: cache.capacityKwh,
+        from: cache.fullAt,
+        to: cache.savedAt || Date.now(),
+        fullAt: cache.fullAt,
+        chargeAcWh: 0,
+        intoBatteryWh: balance.intoWh,
+        outOfBatteryWh: balance.outWh,
+        weekBatteryWh: balance.weekWh,
+        netWh: balance.intoWh - balance.outWh,
+        lowWh: cache.remainingWh,
+        highWh: cache.remainingWh
+    };
+    paintReserveCard();
+    UI.renderChargeSoc(latestReserveEstimate, currentLang);
+}
+
+function rememberTail(plugs, meters) {
+    const plug = newestReading(plugs, chargeTime);
+    const meter = newestReading(meters, meterTime);
+    if (plug) {
+        balance.plugAfter = plug.t;
+        balance.lastPlug = {
+            t: plug.t,
+            power: Number(plug.item.power),
+            on: plug.item.on === true,
+            voltage: Number(plug.item.voltage)
+        };
+    }
+    if (meter) {
+        balance.meterAfter = meter.t;
+        balance.lastMeter = {
+            t: meter.t,
+            voltage: Number(meter.item.voltage),
+            current: Number(meter.item.current),
+            power: Number(meter.item.power),
+            energy: Number(meter.item.energy)
+        };
+    }
+}
+
+function absorbBalance(plugs, meters) {
+    const plugNew = plugs.filter(item => (chargeTime(item) || 0) > (balance.plugAfter || 0));
+    const meterNew = meters.filter(item => (meterTime(item) || 0) > (balance.meterAfter || 0));
+    if (!plugNew.length && !meterNew.length) return;
+    const charges = [asCharge(balance.lastPlug), ...plugNew].filter(Boolean);
+    const reserve = [asMeter(balance.lastMeter), ...meterNew].filter(Boolean);
+    const anchored = UI.estimateLifepoReserve(reserve, charges, batteryCapacityKwh);
+    const capWh = (batteryCapacityKwh > 0 ? batteryCapacityKwh : 2.4) * 1000;
+    if (Number.isFinite(anchored.fullAt) && (!Number.isFinite(balance.fullAt) || anchored.fullAt > balance.fullAt + 60000)) {
+        balance.fullAt = anchored.fullAt;
+        balance.remainingWh = anchored.lowWh;
+        balance.intoWh = anchored.intoBatteryWh;
+        balance.outWh = anchored.outOfBatteryWh;
+        balance.weekWh = anchored.weekBatteryWh;
+    } else if (Number.isFinite(balance.fullAt)) {
+        const delta = UI.estimateLifepoReserve(reserve, charges, batteryCapacityKwh, Date.now(), { findAnchor: false });
+        balance.remainingWh = Math.min(capWh, Math.max(0, balance.remainingWh + delta.intoBatteryWh - delta.outOfBatteryWh));
+        balance.intoWh += delta.intoBatteryWh;
+        balance.outWh += delta.outOfBatteryWh;
+    } else {
+        latestReserveEstimate = anchored;
+        rememberTail(plugNew, meterNew);
+        paintBalanceEstimate();
+        return;
+    }
+    latestReserveEstimate = {
+        ready: true,
+        capacityKwh: batteryCapacityKwh,
+        from: balance.fullAt,
+        to: Date.now(),
+        fullAt: balance.fullAt,
+        chargeAcWh: 0,
+        intoBatteryWh: balance.intoWh,
+        outOfBatteryWh: balance.outWh,
+        weekBatteryWh: balance.weekWh,
+        netWh: balance.intoWh - balance.outWh,
+        lowWh: balance.remainingWh,
+        highWh: balance.remainingWh
+    };
+    rememberTail(plugNew, meterNew);
+    writeBalanceCache();
+    scheduleLifepoSave();
+    paintBalanceEstimate();
+}
+
+function stopHomeBalance() {
+    balance.unsubs.forEach(stop => stop());
+    balance.unsubs = [];
+}
+
+function meterBalanceQuery(startUnix, relaxed) {
+    const parts = [where("timestamp_unix", ">", startUnix)];
+    if (!relaxed) parts.push(where("power", ">", 25));
+    parts.push(orderBy("timestamp_unix", "asc"));
+    if (!relaxed) parts.push(orderBy("power", "asc"));
+    return query(collection(db, "meter_readings"), ...parts);
+}
+
+function watchBalance(plugStart, meterStartUnix) {
+    stopHomeBalance();
+    const plugs = onSnapshot(query(
+        collection(db, "lifepo_charge"),
+        where("timestamp", ">", plugStart),
+        orderBy("timestamp", "asc")
+    ), (snapshot) => {
+        absorbBalance(snapshot.docs.map(item => item.data()), []);
+    }, (err) => console.error("Charge balance listener error:", err));
+    const meters = onSnapshot(meterBalanceQuery(meterStartUnix, balance.meterRelaxed), (snapshot) => {
+        absorbBalance([], snapshot.docs.map(item => item.data()));
+    }, (err) => {
+        if (!balance.meterRelaxed) {
+            balance.meterRelaxed = true;
+            const retry = onSnapshot(meterBalanceQuery(meterStartUnix, true), (snapshot) => {
+                absorbBalance([], snapshot.docs.map(item => item.data()));
+            }, (retryErr) => console.error("Charge meter listener error:", retryErr));
+            balance.unsubs.push(retry);
+        } else {
+            console.error("Charge meter listener error:", err);
+        }
+    });
+    balance.unsubs.push(plugs, meters);
+}
+
+function scheduleHomeBalance() {
+    const run = () => ensureHomeBalance();
+    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 1200 });
+    else setTimeout(run, 300);
+}
+
+async function ensureHomeBalance() {
+    if (weekBalanceStarted || (balance.started && balance.capacityKwh === batteryCapacityKwh)) return;
+    balance.started = true;
+    balance.capacityKwh = batteryCapacityKwh;
+    const local = readBalanceCache();
+    let remote = null;
+    try {
+        const snap = await getDoc(doc(db, "esp32_settings", "lifepo_state"));
+        if (snap.exists()) remote = snap.data();
+    } catch (err) {
+        console.error("LiFePO state read error:", err);
+    }
+    const remoteOk = remote && remote.v === 1 && remote.capacityKwh === batteryCapacityKwh && Number.isFinite(remote.fullAt);
+    const localOk = local && local.capacityKwh === batteryCapacityKwh;
+    const remoteFresh = !localOk || (remote?.savedAt || 0) >= (local?.savedAt || 0);
+    if (remoteOk && remoteFresh) {
+        applyBalanceRecord(remote);
+        writeBalanceCache();
+        watchBalance(new Date(balance.plugAfter), Math.floor(balance.meterAfter / 1000));
+        return;
+    }
+    if (localOk) {
+        paintCachedBalance();
+        scheduleLifepoSave();
+        watchBalance(new Date(balance.plugAfter || local.fullAt), Math.floor((balance.meterAfter || local.fullAt) / 1000));
+        return;
+    }
+    const buildingAge = remote?.updated_at?.toDate ? Date.now() - remote.updated_at.toDate().getTime() : Infinity;
+    if (remote?.building && buildingAge < 120000) {
+        balance.started = false;
+        setTimeout(ensureHomeBalance, 4000);
+        return;
+    }
+    await setDoc(doc(db, "esp32_settings", "lifepo_state"), { building: true, updated_at: new Date() }, { merge: true });
+    primeHomeBalance();
+}
+
+async function primeHomeBalance() {
+    const since = sevenDaysStart();
+    try {
+        const plugs = await getDocs(query(
+            collection(db, "lifepo_charge"),
+            where("timestamp", ">=", since),
+            orderBy("timestamp", "asc")
+        ));
+        let meters;
+        try {
+            meters = await getDocs(meterBalanceQuery(Math.floor(since.getTime() / 1000) - 1, false));
+        } catch (e) {
+            balance.meterRelaxed = true;
+            meters = await getDocs(meterBalanceQuery(Math.floor(since.getTime() / 1000) - 1, true));
+        }
+        if (weekBalanceStarted) return;
+        balance.fullAt = null;
+        balance.plugAfter = 0;
+        balance.meterAfter = 0;
+        balance.lastPlug = null;
+        balance.lastMeter = null;
+        absorbBalance(plugs.docs.map(item => item.data()), meters.docs.map(item => item.data()));
+        watchBalance(new Date(balance.plugAfter || since.getTime()), Math.floor((balance.meterAfter || since.getTime()) / 1000));
+    } catch (e) {
+        console.error("Charge balance load error:", e);
+    }
+}
+
+let weekHistoryReady = false;
+let weekBalanceStarted = false;
+
+function paintChargeBalance() {
+    if (!weekHistoryReady && !balance.started) return;
+    if (weekHistoryReady) {
+        latestReserveEstimate = (chargeHistory.length || socMeterDocs.length)
+            ? UI.estimateLifepoReserve(socMeterDocs, chargeHistory, batteryCapacityKwh)
+            : null;
+        if (latestReserveEstimate?.fullAt) {
+            balance.fullAt = latestReserveEstimate.fullAt;
+            balance.remainingWh = latestReserveEstimate.lowWh;
+            balance.intoWh = latestReserveEstimate.intoBatteryWh;
+            balance.outWh = latestReserveEstimate.outOfBatteryWh;
+            balance.weekWh = latestReserveEstimate.weekBatteryWh;
+            balance.plugAfter = 0;
+            balance.meterAfter = 0;
+            balance.lastPlug = null;
+            balance.lastMeter = null;
+            rememberTail(chargeHistory, socMeterDocs);
+            writeBalanceCache();
+            scheduleLifepoSave();
+        }
+    }
+    paintBalanceEstimate();
 }
 
 function startChargeBalance() {
-    if (chargeBalanceStarted) {
+    if (weekBalanceStarted) {
         paintChargeBalance();
         return;
     }
-    chargeBalanceStarted = true;
-    paintChargeBalance();
+    weekBalanceStarted = true;
+    stopHomeBalance();
     const since = sevenDaysStart();
     const qHistory = query(
         collection(db, "lifepo_charge"),
@@ -549,18 +1048,18 @@ function startChargeBalance() {
     );
     onSnapshot(qHistory, (snapshot) => {
         chargeHistory = snapshot.docs.map(item => item.data());
+        weekHistoryReady = socMeterDocs.length > 0 || chargeHistory.length > 0;
         paintChargeBalance();
     }, (err) => console.error("Charge balance listener error:", err));
-    const qMeter = query(
-        collection(db, "meter_readings"),
-        where("timestamp_unix", ">=", Math.floor(since.getTime() / 1000)),
-        orderBy("timestamp_unix", "asc")
-    );
-    onSnapshot(qMeter, (snapshot) => {
-        if (snapshot.metadata.fromCache) return;
+    const listenMeters = (relaxed) => onSnapshot(meterBalanceQuery(Math.floor(since.getTime() / 1000) - 1, relaxed), (snapshot) => {
         socMeterDocs = snapshot.docs.map(item => item.data());
+        weekHistoryReady = true;
         paintChargeBalance();
-    }, (err) => console.error("Charge meter listener error:", err));
+    }, (err) => {
+        if (!relaxed) listenMeters(true);
+        else console.error("Charge meter listener error:", err);
+    });
+    listenMeters(balance.meterRelaxed);
 }
 
 function startChargeListener() {
@@ -740,6 +1239,7 @@ async function loadSettingsFromDB() {
             input.disabled = false;
             input.classList.remove('opacity-50');
         });
+        scheduleHomeBalance();
     }
 }
 

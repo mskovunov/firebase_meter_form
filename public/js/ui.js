@@ -62,6 +62,9 @@ export const translations = {
             "Показания уходят в Firebase, пока плата на связи. Значок в шапке зелёный, если свежий пакет пришёл за последние 3 минуты."
         ],
         aboutReleases: [
+            { version: "2.2211.1717", notes: [
+                "Главная больше не читает всю историю при каждом открытии. Последнее включение и процент LiFePO4 хранятся в коротких документах, дальше дочитываются только новые пакеты."
+            ]},
             { version: "2.2011.1703", notes: [
                 "Добавлен раздел «Про систему»: описание проекта и пять последних опубликованных версий."
             ]},
@@ -75,10 +78,6 @@ export const translations = {
             ]},
             { version: "2.1011.2232", notes: [
                 "В графиках появилась зарядка LiFePO4. Порядок: свет, LiFePO4, аккумулятор 18650. Процент совпадал с главной, ось X была в часах."
-            ]},
-            { version: "2.1011.2203", notes: [
-                "На главной и на странице зарядки один и тот же остаток LiFePO4. 100% ставится, когда зарядки остановились, а напряжение линии осталось.",
-                "Под статусом «разряд» пишется примерное время работы от аккумулятора."
             ]}
         ]
     },
@@ -143,6 +142,9 @@ export const translations = {
             "Покази йдуть у Firebase, поки плата на зв'язку. Значок у шапці зелений, якщо свіжий пакет прийшов за останні 3 хвилини."
         ],
         aboutReleases: [
+            { version: "2.2211.1717", notes: [
+                "Головна більше не читає всю історію при кожному відкритті. Останнє увімкнення і відсоток LiFePO4 зберігаються в коротких документах, далі дочитуються лише нові пакети."
+            ]},
             { version: "2.2011.1703", notes: [
                 "Додано розділ «Про систему»: опис проєкту і п'ять останніх опублікованих версій."
             ]},
@@ -156,10 +158,6 @@ export const translations = {
             ]},
             { version: "2.1011.2232", notes: [
                 "У графіках з'явилась зарядка LiFePO4. Порядок: світло, LiFePO4, акумулятор 18650. Відсоток збігався з головною, вісь X була в годинах."
-            ]},
-            { version: "2.1011.2203", notes: [
-                "На головній і на сторінці зарядки один і той самий залишок LiFePO4. 100% ставиться, коли зарядки зупинились, а напруга лінії лишилась.",
-                "Під статусом «розряд» пишеться приблизний час роботи від акумулятора."
             ]}
         ]
     },
@@ -224,6 +222,9 @@ export const translations = {
             "Readings go to Firebase while the board is online. The header icon is green when a fresh packet arrived within the last 3 minutes."
         ],
         aboutReleases: [
+            { version: "2.2211.1717", notes: [
+                "Home no longer reads the whole history on every open. The last power change and the LiFePO4 percent are stored in short documents, and later visits read only the new packets."
+            ]},
             { version: "2.2011.1703", notes: [
                 "Added the About page: a project description and the five latest published versions."
             ]},
@@ -237,10 +238,6 @@ export const translations = {
             ]},
             { version: "2.1011.2232", notes: [
                 "The graphs gained a LiFePO4 charge chart. Order: light, LiFePO4, 18650 battery. The percent matched the home card, and the X axis was in hours."
-            ]},
-            { version: "2.1011.2203", notes: [
-                "Home and the charge page show the same LiFePO4 reserve. 100% is set when the chargers stop and the line voltage stays.",
-                "Under the discharge status the card shows the approximate runtime left on the battery."
             ]}
         ]
     }
@@ -522,7 +519,7 @@ function wattsInside(samples, at, maxGap, wattsOf) {
     return wattsOf(previous);
 }
 
-export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh, nowMs = Date.now()) {
+export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh, nowMs = Date.now(), options = {}) {
     const capacity = Number(capacityKwh);
     const capacityWh = Number.isFinite(capacity) && capacity > 0 ? capacity * 1000 : 2400;
     const meters = filterMeterSeries(meterReadings || [])
@@ -549,7 +546,7 @@ export function estimateLifepoReserve(meterReadings, chargeReadings, capacityKwh
         .sort((a, b) => a.t - b.t);
 
     let fullAt = null;
-    for (let index = 1; index < charges.length; index += 1) {
+    if (options.findAnchor !== false) for (let index = 1; index < charges.length; index += 1) {
         const previous = charges[index - 1];
         const current = charges[index];
         const span = current.t - previous.t;

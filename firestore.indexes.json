@@ -1,0 +1,29 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "meter_readings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "created_at", "order": "ASCENDING" },
+        { "fieldPath": "timestamp_unix", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "meter_readings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "energy", "order": "ASCENDING" },
+        { "fieldPath": "created_at", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "meter_readings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "timestamp_unix", "order": "ASCENDING" },
+        { "fieldPath": "power", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
