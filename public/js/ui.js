@@ -3,7 +3,7 @@
 export const translations = {
     ru: {
         subtitle: "Система мониторинга", loading: "Загрузка...", wait: "Ожидание данных", 
-        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от АКБ", subOff: "Нет сети и резерв не работает",
+        powerOn: "СВЕТ ЕСТЬ", powerReserve: "РЕЗЕРВ", powerOff: "СВЕТА НЕТ", subOn: "Городская сеть, инвертор на холостом ходу", subReserve: "Городской сети нет, работа от АКБ", subReserveGrid: "Городская сеть есть. Дом ещё от АКБ", subOff: "Нет сети и резерв не работает",
         runtimeTitle: "Запас LiFePO4", runtimeWait: "Считаю по сегодняшнему расходу...", runtimeNote: "Сегодня {today} кВт·ч из {capacity} · сейчас {power} Вт · осталось ≈ {time}",
         runtimeCharge: "ЗАРЯДКА", runtimeDischarge: "РАЗРЯД", runtimeIdle: "ПОКОЙ", runtimeNoLink: "НЕТ ДАННЫХ", unitW: "Вт",
         runtimeLeft: "≈ {time}",
@@ -62,6 +62,9 @@ export const translations = {
             "Показания уходят в Firebase, пока плата на связи. Значок в шапке зелёный, если свежий пакет пришёл за последние 3 минуты."
         ],
         aboutReleases: [
+            { version: "2.2311.1524", notes: [
+                "При резерве, если розетка щитка видит сеть, под статусом зелёная плашка «Городская сеть есть. Дом ещё от АКБ»."
+            ]},
             { version: "2.2211.1717", notes: [
                 "Главная больше не читает всю историю при каждом открытии. Последнее включение и процент LiFePO4 хранятся в коротких документах, дальше дочитываются только новые пакеты."
             ]},
@@ -75,15 +78,12 @@ export const translations = {
             ]},
             { version: "2.1611.2206", notes: [
                 "График зарядки LiFePO4 стал столбцами киловатт-часов по дням. Считается по мощности розетки, собственный счётчик розетки не используется."
-            ]},
-            { version: "2.1011.2232", notes: [
-                "В графиках появилась зарядка LiFePO4. Порядок: свет, LiFePO4, аккумулятор 18650. Процент совпадал с главной, ось X была в часах."
             ]}
         ]
     },
     uk: {
         subtitle: "Система моніторингу", loading: "Завантаження...", wait: "Очікування даних", 
-        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від АКБ", subOff: "Немає мережі і резерв не працює",
+        powerOn: "СВІТЛО Є", powerReserve: "РЕЗЕРВ", powerOff: "СВІТЛА НЕМАЄ", subOn: "Міська мережа, інвертор на холостому ходу", subReserve: "Міської мережі немає, робота від АКБ", subReserveGrid: "Міська мережа є. Дім ще від АКБ", subOff: "Немає мережі і резерв не працює",
         runtimeTitle: "Запас LiFePO4", runtimeWait: "Рахую за сьогоднішнім споживанням...", runtimeNote: "Сьогодні {today} кВт·год із {capacity} · зараз {power} Вт · залишилось ≈ {time}",
         runtimeCharge: "ЗАРЯДКА", runtimeDischarge: "РОЗРЯД", runtimeIdle: "СПОКІЙ", runtimeNoLink: "НЕМАЄ ДАНИХ", unitW: "Вт",
         runtimeLeft: "≈ {time}",
@@ -142,6 +142,9 @@ export const translations = {
             "Покази йдуть у Firebase, поки плата на зв'язку. Значок у шапці зелений, якщо свіжий пакет прийшов за останні 3 хвилини."
         ],
         aboutReleases: [
+            { version: "2.2311.1524", notes: [
+                "При резерві, якщо розетка щитка бачить мережу, під статусом зелена плашка «Міська мережа є. Дім ще від АКБ»."
+            ]},
             { version: "2.2211.1717", notes: [
                 "Головна більше не читає всю історію при кожному відкритті. Останнє увімкнення і відсоток LiFePO4 зберігаються в коротких документах, далі дочитуються лише нові пакети."
             ]},
@@ -155,15 +158,12 @@ export const translations = {
             ]},
             { version: "2.1611.2206", notes: [
                 "Графік зарядки LiFePO4 став стовпчиками кіловат-годин по днях. Рахується за потужністю розетки, власний лічильник розетки не використовується."
-            ]},
-            { version: "2.1011.2232", notes: [
-                "У графіках з'явилась зарядка LiFePO4. Порядок: світло, LiFePO4, акумулятор 18650. Відсоток збігався з головною, вісь X була в годинах."
             ]}
         ]
     },
     en: {
         subtitle: "Monitoring System", loading: "Loading...", wait: "Waiting for data", 
-        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on the battery", subOff: "No grid and the backup is off",
+        powerOn: "GRID POWER", powerReserve: "BACKUP", powerOff: "NO POWER", subOn: "City grid present, inverter idling", subReserve: "City grid is down, running on the battery", subReserveGrid: "City grid is up. The house is still on the battery", subOff: "No grid and the backup is off",
         runtimeTitle: "LiFePO4 reserve", runtimeWait: "Calculating from today's use...", runtimeNote: "Today {today} kWh of {capacity} · now {power} W · about {time} left",
         runtimeCharge: "CHARGING", runtimeDischarge: "DISCHARGING", runtimeIdle: "IDLE", runtimeNoLink: "NO DATA", unitW: "W",
         runtimeLeft: "≈ {time}",
@@ -222,6 +222,9 @@ export const translations = {
             "Readings go to Firebase while the board is online. The header icon is green when a fresh packet arrived within the last 3 minutes."
         ],
         aboutReleases: [
+            { version: "2.2311.1524", notes: [
+                "While the house is on backup, a green badge says the city grid is up when the panel plug still sees line voltage."
+            ]},
             { version: "2.2211.1717", notes: [
                 "Home no longer reads the whole history on every open. The last power change and the LiFePO4 percent are stored in short documents, and later visits read only the new packets."
             ]},
@@ -235,9 +238,6 @@ export const translations = {
             ]},
             { version: "2.1611.2206", notes: [
                 "The LiFePO4 charge chart became daily kilowatt-hour bars. It integrates the plug power and does not use the plug's own energy counter."
-            ]},
-            { version: "2.1011.2232", notes: [
-                "The graphs gained a LiFePO4 charge chart. Order: light, LiFePO4, 18650 battery. The percent matched the home card, and the X axis was in hours."
             ]}
         ]
     }
@@ -972,7 +972,16 @@ export function classifySupply(reading) {
     return "grid";
 }
 
-export function renderSupplyStatus(reading, currentLang) {
+function panelLineLive(chargeReading) {
+    const stamp = chargeReading?.timestamp && typeof chargeReading.timestamp.toDate === "function"
+        ? chargeReading.timestamp.toDate()
+        : null;
+    if (!stamp || (Date.now() - stamp.getTime()) >= CHARGE_FRESH_MS) return false;
+    const voltage = Number(chargeReading.voltage);
+    return chargeReading.on === true && Number.isFinite(voltage) && voltage >= SUPPLY_VOLTAGE_MIN;
+}
+
+export function renderSupplyStatus(reading, currentLang, chargeReading = null) {
     const t = translations[currentLang];
     const mode = classifySupply(reading);
     const voltage = Number(reading?.voltage);
@@ -982,6 +991,7 @@ export function renderSupplyStatus(reading, currentLang) {
     const statusCard = document.getElementById("status-card");
     const statusText = document.getElementById("status-text");
     const statusSubtext = document.getElementById("status-subtext");
+    const statusGridNote = document.getElementById("status-grid-note");
     const statusIconBg = document.getElementById("status-icon-bg");
     const statusPing = document.getElementById("status-ping");
     const modes = {
@@ -990,10 +1000,23 @@ export function renderSupplyStatus(reading, currentLang) {
         blackout: ["bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800", "text-red-700 dark:text-red-400", "bg-red-500 shadow-red-500/50", "fa-plug-circle-xmark", t.powerOff, t.subOff, true]
     };
     const [cardClass, textClass, iconClass, icon, title, subtitle, hidePing] = modes[mode];
+    const cityWhileReserve = mode === "reserve" && panelLineLive(chargeReading);
     statusCard.className = `${cardClass} rounded-2xl p-6 text-center transition-colors duration-500 flex flex-col`;
     statusText.className = `text-2xl font-bold ${textClass}`;
     statusText.innerText = title;
-    statusSubtext.innerText = `${subtitle}\n${t.voltLabel}: ${voltageText} V\n${t.powerLabel}: ${powerText} W`;
+    statusSubtext.innerText = cityWhileReserve
+        ? `${t.voltLabel}: ${voltageText} V\n${t.powerLabel}: ${powerText} W`
+        : `${subtitle}\n${t.voltLabel}: ${voltageText} V\n${t.powerLabel}: ${powerText} W`;
+    if (statusGridNote) {
+        if (cityWhileReserve) {
+            statusGridNote.className = "inline-flex self-center items-center gap-2 text-sm font-bold mt-3 px-3 py-1.5 rounded-full bg-green-600 text-white shadow-md";
+            statusGridNote.innerHTML = `<i class="fas fa-bolt"></i><span></span>`;
+            statusGridNote.querySelector("span").textContent = t.subReserveGrid;
+        } else {
+            statusGridNote.textContent = "";
+            statusGridNote.className = "hidden";
+        }
+    }
     statusIconBg.className = `relative inline-flex rounded-full h-16 w-16 ${iconClass} items-center justify-center text-white text-2xl shadow-lg`;
     statusIconBg.innerHTML = `<i class="fas ${icon}"></i>`;
     statusPing.classList.toggle("hidden", hidePing);

@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.2211.1717';
-import * as Charts from './charts.js?v=2.2211.1717';
+import * as UI from './ui.js?v=2.2311.1524';
+import * as Charts from './charts.js?v=2.2311.1524';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -314,7 +314,7 @@ function paintLiveSupply() {
     if (!latestSupplyReading) return;
     rememberInverterOff(latestSupplyReading);
     const shown = UI.supplyReadingForDisplay(latestSupplyReading, currentDocs);
-    UI.renderSupplyStatus(shown, currentLang);
+    UI.renderSupplyStatus(shown, currentLang, latestChargeReading);
     paintReserveCard();
     if (supplyHistoryReady && (cachedSupplyEdges || inverterOffAt || confirmedSilence)) {
         UI.renderSupplyEdgeResult(edgesForDisplay());
