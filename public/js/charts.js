@@ -1,5 +1,5 @@
 // js/charts.js
-import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.2311.1524';
+import { classifySupply, displayedPower, filterMeterSeries } from './ui.js?v=2.2411.2138';
 
 try {
     if (typeof ChartDataLabels !== 'undefined') {

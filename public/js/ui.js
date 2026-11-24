@@ -62,6 +62,9 @@ export const translations = {
             "Показания уходят в Firebase, пока плата на связи. Значок в шапке зелёный, если свежий пакет пришёл за последние 3 минуты."
         ],
         aboutReleases: [
+            { version: "2.2411.2138", notes: [
+                "Последнее включение света — это переход в «Свет есть». Возврат напряжения на инверторе, пока дом на резерве, включением не считается."
+            ]},
             { version: "2.2311.1524", notes: [
                 "При резерве, если розетка щитка видит сеть, под статусом зелёная плашка «Городская сеть есть. Дом ещё от АКБ»."
             ]},
@@ -75,9 +78,6 @@ export const translations = {
                 "Плата больше не выключает Wi-Fi по цифре из скрипта и при старте включает его сама.",
                 "В шапке значок связи с платой: зелёный, жёлтый перечёркнутый или красный, если нет интернета в браузере.",
                 "На графике света пауза без показаний длиннее 3 минут рисуется серым «нет данных», а не продолжением последнего состояния."
-            ]},
-            { version: "2.1611.2206", notes: [
-                "График зарядки LiFePO4 стал столбцами киловатт-часов по дням. Считается по мощности розетки, собственный счётчик розетки не используется."
             ]}
         ]
     },
@@ -142,6 +142,9 @@ export const translations = {
             "Покази йдуть у Firebase, поки плата на зв'язку. Значок у шапці зелений, якщо свіжий пакет прийшов за останні 3 хвилини."
         ],
         aboutReleases: [
+            { version: "2.2411.2138", notes: [
+                "Останнє увімкнення світла — це перехід у «Світло є». Повернення напруги на інверторі, поки дім на резерві, увімкненням не вважається."
+            ]},
             { version: "2.2311.1524", notes: [
                 "При резерві, якщо розетка щитка бачить мережу, під статусом зелена плашка «Міська мережа є. Дім ще від АКБ»."
             ]},
@@ -155,9 +158,6 @@ export const translations = {
                 "Плата більше не вимикає Wi-Fi за цифрою зі скрипта і під час старту вмикає його сама.",
                 "У шапці значок зв'язку з платою: зелений, жовтий перекреслений або червоний, якщо в браузері немає інтернету.",
                 "На графіку світла пауза без показів довша за 3 хвилини малюється сірим «немає даних», а не продовженням останнього стану."
-            ]},
-            { version: "2.1611.2206", notes: [
-                "Графік зарядки LiFePO4 став стовпчиками кіловат-годин по днях. Рахується за потужністю розетки, власний лічильник розетки не використовується."
             ]}
         ]
     },
@@ -222,6 +222,9 @@ export const translations = {
             "Readings go to Firebase while the board is online. The header icon is green when a fresh packet arrived within the last 3 minutes."
         ],
         aboutReleases: [
+            { version: "2.2411.2138", notes: [
+                "The last light-on time is the change to grid power. Inverter voltage returning while the house is still on backup does not count as light on."
+            ]},
             { version: "2.2311.1524", notes: [
                 "While the house is on backup, a green badge says the city grid is up when the panel plug still sees line voltage."
             ]},
@@ -235,9 +238,6 @@ export const translations = {
                 "The board no longer turns Wi-Fi off from the script digit, and it turns Wi-Fi on at startup.",
                 "The header icon shows the link to the board: green, amber and crossed out, or red when the browser itself is offline.",
                 "On the light chart a gap longer than 3 minutes is gray \"no data\" instead of a continuation of the last state."
-            ]},
-            { version: "2.1611.2206", notes: [
-                "The LiFePO4 charge chart became daily kilowatt-hour bars. It integrates the plug power and does not use the plug's own energy counter."
             ]}
         ]
     }
