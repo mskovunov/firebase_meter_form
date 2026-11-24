@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.2411.2138';
-import * as Charts from './charts.js?v=2.2411.2138';
+import * as UI from './ui.js?v=2.2411.2149';
+import * as Charts from './charts.js?v=2.2411.2149';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State

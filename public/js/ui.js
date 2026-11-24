@@ -62,7 +62,7 @@ export const translations = {
             "Показания уходят в Firebase, пока плата на связи. Значок в шапке зелёный, если свежий пакет пришёл за последние 3 минуты."
         ],
         aboutReleases: [
-            { version: "2.2411.2138", notes: [
+            { version: "2.2411.2149", notes: [
                 "Последнее включение света — это переход в «Свет есть». Возврат напряжения на инверторе, пока дом на резерве, включением не считается."
             ]},
             { version: "2.2311.1524", notes: [
@@ -142,7 +142,7 @@ export const translations = {
             "Покази йдуть у Firebase, поки плата на зв'язку. Значок у шапці зелений, якщо свіжий пакет прийшов за останні 3 хвилини."
         ],
         aboutReleases: [
-            { version: "2.2411.2138", notes: [
+            { version: "2.2411.2149", notes: [
                 "Останнє увімкнення світла — це перехід у «Світло є». Повернення напруги на інверторі, поки дім на резерві, увімкненням не вважається."
             ]},
             { version: "2.2311.1524", notes: [
@@ -222,7 +222,7 @@ export const translations = {
             "Readings go to Firebase while the board is online. The header icon is green when a fresh packet arrived within the last 3 minutes."
         ],
         aboutReleases: [
-            { version: "2.2411.2138", notes: [
+            { version: "2.2411.2149", notes: [
                 "The last light-on time is the change to grid power. Inverter voltage returning while the house is still on backup does not count as light on."
             ]},
             { version: "2.2311.1524", notes: [
