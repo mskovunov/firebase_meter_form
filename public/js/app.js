@@ -1,7 +1,7 @@
 // js/app.js
 import { db } from './config.js';
-import * as UI from './ui.js?v=2.2411.2149';
-import * as Charts from './charts.js?v=2.2411.2149';
+import * as UI from './ui.js?v=2.2711.1245';
+import * as Charts from './charts.js?v=2.2711.1245';
 import { collection, query, orderBy, limit, onSnapshot, where, getDocs, doc, getDoc, setDoc, startAfter } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // State
@@ -291,8 +291,22 @@ function readingsForSilence() {
     return [...byTime.values()];
 }
 
+function eventsCover(events, previousAt) {
+    const times = (events || []).map(event => {
+        const time = event?.timestamp?.toDate ? event.timestamp.toDate() : new Date(event?.timestamp);
+        return time instanceof Date && !Number.isNaN(time.getTime()) ? time.getTime() : null;
+    }).filter(time => time != null);
+    return times.length > 0 && Math.min(...times) <= previousAt;
+}
+
 function noteSilence(events) {
-    const silence = UI.silenceOutageEdges(readingsForSilence(), events || currentDocs);
+    const readings = readingsForSilence()
+        .filter(UI.isPlausibleMeterReading)
+        .sort((a, b) => Number(a.timestamp_unix) - Number(b.timestamp_unix));
+    const list = events || currentDocs;
+    const previousAt = readings.length >= 2 ? Number(readings[readings.length - 2].timestamp_unix) * 1000 : null;
+    if (!previousAt || !eventsCover(list, previousAt)) return null;
+    const silence = UI.silenceOutageEdges(readings, list);
     if (silence && (!confirmedSilence || silence.on > confirmedSilence.on)) confirmedSilence = silence;
     return silence;
 }
@@ -336,7 +350,9 @@ async function lookupSilenceGap() {
         if (Number(readings[index - 1].voltage) < 80 || Number(readings[index].voltage) < 80) continue;
         checked += 1;
         if (confirmedSilence && confirmedSilence.on >= new Date(nextAt)) return;
-        const known = UI.silenceOutageEdges([readings[index - 1], readings[index]], currentDocs);
+        const known = eventsCover(currentDocs, previousAt)
+            ? UI.silenceOutageEdges([readings[index - 1], readings[index]], currentDocs)
+            : null;
         if (known) {
             confirmedSilence = known;
             UI.renderSupplyEdgeResult(edgesForDisplay());

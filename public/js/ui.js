@@ -62,6 +62,9 @@ export const translations = {
             "Показания уходят в Firebase, пока плата на связи. Значок в шапке зелёный, если свежий пакет пришёл за последние 3 минуты."
         ],
         aboutReleases: [
+            { version: "2.2711.1245", notes: [
+                "Время выключения света больше не сдвигается по последним 30 проверкам. Остаётся момент, когда плата зафиксировала отключение."
+            ]},
             { version: "2.2411.2149", notes: [
                 "Последнее включение света — это переход в «Свет есть». Возврат напряжения на инверторе, пока дом на резерве, включением не считается."
             ]},
@@ -73,11 +76,6 @@ export const translations = {
             ]},
             { version: "2.2011.1703", notes: [
                 "Добавлен раздел «Про систему»: описание проекта и пять последних опубликованных версий."
-            ]},
-            { version: "2.2011.1612", notes: [
-                "Плата больше не выключает Wi-Fi по цифре из скрипта и при старте включает его сама.",
-                "В шапке значок связи с платой: зелёный, жёлтый перечёркнутый или красный, если нет интернета в браузере.",
-                "На графике света пауза без показаний длиннее 3 минут рисуется серым «нет данных», а не продолжением последнего состояния."
             ]}
         ]
     },
@@ -142,6 +140,9 @@ export const translations = {
             "Покази йдуть у Firebase, поки плата на зв'язку. Значок у шапці зелений, якщо свіжий пакет прийшов за останні 3 хвилини."
         ],
         aboutReleases: [
+            { version: "2.2711.1245", notes: [
+                "Час вимкнення світла більше не зсувається за останніми 30 перевірками. Лишається момент, коли плата зафіксувала вимкнення."
+            ]},
             { version: "2.2411.2149", notes: [
                 "Останнє увімкнення світла — це перехід у «Світло є». Повернення напруги на інверторі, поки дім на резерві, увімкненням не вважається."
             ]},
@@ -153,11 +154,6 @@ export const translations = {
             ]},
             { version: "2.2011.1703", notes: [
                 "Додано розділ «Про систему»: опис проєкту і п'ять останніх опублікованих версій."
-            ]},
-            { version: "2.2011.1612", notes: [
-                "Плата більше не вимикає Wi-Fi за цифрою зі скрипта і під час старту вмикає його сама.",
-                "У шапці значок зв'язку з платою: зелений, жовтий перекреслений або червоний, якщо в браузері немає інтернету.",
-                "На графіку світла пауза без показів довша за 3 хвилини малюється сірим «немає даних», а не продовженням останнього стану."
             ]}
         ]
     },
@@ -222,6 +218,9 @@ export const translations = {
             "Readings go to Firebase while the board is online. The header icon is green when a fresh packet arrived within the last 3 minutes."
         ],
         aboutReleases: [
+            { version: "2.2711.1245", notes: [
+                "The light-off time no longer slides forward with the last 30 checks. It stays at the moment the board recorded the outage."
+            ]},
             { version: "2.2411.2149", notes: [
                 "The last light-on time is the change to grid power. Inverter voltage returning while the house is still on backup does not count as light on."
             ]},
@@ -233,11 +232,6 @@ export const translations = {
             ]},
             { version: "2.2011.1703", notes: [
                 "Added the About page: a project description and the five latest published versions."
-            ]},
-            { version: "2.2011.1612", notes: [
-                "The board no longer turns Wi-Fi off from the script digit, and it turns Wi-Fi on at startup.",
-                "The header icon shows the link to the board: green, amber and crossed out, or red when the browser itself is offline.",
-                "On the light chart a gap longer than 3 minutes is gray \"no data\" instead of a continuation of the last state."
             ]}
         ]
     }
@@ -373,7 +367,7 @@ export function applyLanguage(lang) {
         't-charge-power': t.chargePower, 't-charge-energy': t.chargeEnergy,
         'charge-note': t.chargeNote, 't-charge-soc': t.socTitle
     };
-        for (const [id, text] of Object.entries(ids)) {
+    for (const [id, text] of Object.entries(ids)) {
         const el = document.getElementById(id);
         if(el) el.innerText = text;
     }
@@ -938,29 +932,31 @@ export function renderSupplyEdges(readings) {
     renderSupplyEdgeResult(supplyEdgeTimes(readings));
 }
 
-export function newestInverterOff(events) {
-    const parsed = [];
-    (events || []).forEach(event => {
-        if (!event || !["RoutineCheck", "PowerLost", "PowerRestored", "SystemStart"].includes(event.device)) return;
+function mainsEvents(events) {
+    return (events || []).map(event => {
+        if (!event || !["RoutineCheck", "PowerLost", "PowerRestored", "SystemStart"].includes(event.device)) return null;
         const time = event.timestamp?.toDate ? event.timestamp.toDate() : new Date(event.timestamp);
-        if (!(time instanceof Date) || Number.isNaN(time.getTime())) return;
-        parsed.push({ time, value: Number(event.value) });
-    });
-    parsed.sort((a, b) => b.time - a.time);
+        if (!(time instanceof Date) || Number.isNaN(time.getTime())) return null;
+        return { time, value: Number(event.value) };
+    }).filter(Boolean).sort((a, b) => b.time - a.time);
+}
+
+export function newestInverterOff(events) {
+    const parsed = mainsEvents(events);
     if (!parsed.length || parsed[0].value !== 0) return null;
-    let edge = parsed[0];
+    let edge = null;
     for (const event of parsed) {
-        if (event.value !== 0) break;
+        if (event.value !== 0) return edge ? edge.time : null;
         edge = event;
     }
-    return edge.time;
+    return null;
 }
 
 export function supplyReadingForDisplay(reading, events) {
-    const offAt = newestInverterOff(events);
-    if (!reading || !offAt) return reading;
+    const newest = mainsEvents(events)[0];
+    if (!reading || !newest || newest.value !== 0) return reading;
     const meterAt = Number(reading.timestamp_unix) * 1000;
-    if (Number.isFinite(meterAt) && offAt.getTime() <= meterAt) return reading;
+    if (Number.isFinite(meterAt) && newest.time.getTime() <= meterAt) return reading;
     return { ...reading, voltage: 0, power: 0, current: 0 };
 }
 
@@ -1188,7 +1184,7 @@ export function renderHome(docs, currentLang) {
     docs.slice(0, 10).forEach((data) => {
         const evt = data.device || "Event";
         
-        let timeStr = "--:--:--";
+        let timeStr = "--:--:--"; 
         let dateStr = "";
         if (data.timestamp && data.timestamp.toDate) {
             const dateObj = data.timestamp.toDate();
@@ -1214,8 +1210,8 @@ export function renderHome(docs, currentLang) {
             <div class="flex flex-col items-end flex-shrink-0">
                 <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mb-1 tracking-wider">${dateStr}</span>
                 <span class="text-gray-500 dark:text-gray-400 text-xs font-mono bg-gray-200 dark:bg-gray-900 px-2 py-1 rounded whitespace-nowrap">
-                    ${timeStr}
-                </span>
+                ${timeStr}
+            </span>
             </div>
         </li>`;
     });
